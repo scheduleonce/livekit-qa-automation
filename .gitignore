@@ -1,0 +1,76 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+*.manifest
+*.spec
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sqlite3
+logs/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Mypy
+.mypy_cache/
+
+# Generated reports and artifacts
+reports/
+reports/*
+junit.xml
+
+# Conversation artifacts
+transcripts/
+replyAudioFiles/
+
+# Local environment and secrets
+.env
+.env.*
+env.local
+
+# Local LiveKit / bot config overrides (sensitive)
+#data/livekit_bot_config.json
+
+# Backup files
+backup/

@@ -1,1 +1,220 @@
-# livekit-qa-automation
+# LiveKit QA Automation Framework
+
+This repository contains a voice automation framework for validating AI phone agents using LiveKit. It is designed to make AI phone agent testing repeatable, configurable, and accessible to non-technical stakeholders.
+
+## What it does
+
+- Executes real conversation flows with an AI phone agent using `livekit`.
+- Uses YAML scenario definitions for test content, expected outcomes, and environment-specific bot selection.
+- Resolves credentials and bot IDs from centralized JSON/YAML config files.
+- Generates HTML and JUnit-style reports for easy review.
+- Supports multiple environments (`App3`, `App2`, etc.) with environment-driven execution.
+
+## Key benefits
+
+- **No-code scenario updates:** Test cases are defined in YAML files, not Python code.
+- **Environment-driven execution:** `ENV` selects the target environment and bot config.
+- **Reusable configuration:** Centralized credentials in `data/livekit_config.json` and bot mapping in YAML.
+- **Automated validation:** The framework evaluates agent responses against expected outcomes.
+- **Clear reporting:** Test artifacts are saved to `reports/` for team review.
+
+## Repository structure
+
+```
+pytest.ini
+requirements.txt
+README.md
+data/
+  livekit_config.json
+  happy_paths.yaml
+replyAudioFiles/
+reports/
+src/
+  __init__.py
+  config.py
+  evaluator.py
+  livekit_runner.py
+  simulated_user.py
+  tts.py
+  transcript_exporter.py
+  utils.py
+tests/
+  __init__.py
+  conftest.py
+  dummy_test_scenarios.py
+  test_agent.py
+transcripts/
+```
+
+## Prerequisites
+
+- Python 3.8+ (recommended)
+- `pip`
+- Network access to LiveKit and the AI phone agent under test
+- Optional: audio playback support if the framework uses local text-to-speech playback
+
+## Install dependencies
+
+```bash
+python -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+```
+
+On Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install --upgrade pip
+.venv\Scripts\pip install -r requirements.txt
+```
+
+## Configuration
+
+### 1. Set the environment
+
+The framework reads the active environment from the `ENV` environment variable.
+
+Examples:
+
+```bash
+export ENV=App3
+```
+
+```powershell
+$env:ENV = 'App3'
+```
+
+If `ENV` is not set, the current code may default to a configured environment. It is recommended to explicitly set it.
+
+### 2. Configure LiveKit credentials and bot id
+
+The file `data/livekit_bot_config.json` contains environment-specific credential and bot mappings.
+
+Example:
+
+```json
+{
+  "App3": {
+    "LIVEKIT_URL": "wss://app3-livekit.com",
+    "API_KEY": "Test@123",
+    "API_SECRET": "xxxx",
+    "BOT_ID": [
+      { "id": "1", "value": "AI3333" },
+      { "id": "2", "value": "AI4444" }
+    ]
+  },
+  "App2": {
+    "LIVEKIT_URL": "wss://app2-livekit.com",
+    "API_KEY": "Test@123",
+    "API_SECRET": "xxxx",
+    "BOT_ID": [
+      { "id": "1", "value": "AI5555" },
+      { "id": "2", "value": "AI6666" }
+    ]
+  }
+}
+```
+
+### 3. Configure environment-specific bot selection
+
+The YAML file(s) under `data/` define which `target_bot_id` to use for each environment.
+
+Example in `data/happy_paths.yaml`:
+
+```yaml
+environments:
+  App3:
+    target_bot_id: "1"
+  App2:
+    target_bot_id: "2"
+```
+
+## How the framework resolves configuration
+
+1. `ENV` is read from the environment.
+2. `data/livekit_bot_config.json` is parsed to load the matching environment credentials.
+3. The active YAML scenario file is parsed for `environments -> <ENV> -> target_bot_id`.
+4. The JSON `BOT_ID` array is searched for the matching ID and the corresponding bot value is selected.
+
+## Writing test scenarios
+
+Test scenarios are defined as YAML files in the `data/` folder. Each file can contain a single scenario object or a list of scenarios.
+
+Example scenario structure:
+
+```yaml
+id: TC_SCHED_001
+name: "Basic successful appointment booking"
+type: "e2e_conversation"
+objective: >
+  You want to book a meeting.
+  ...
+reference_flow: >
+  Agent: How can I help? -> Caller: Book a demo. -> ...
+
+testData:
+  name: "Alex Parker"
+  email: "alex@staticso2.com"
+  city: "Bangalore"
+  phone: "9624474345"
+
+expectedOutcomes:
+  - id: intent_identified
+    description: "The agent correctly identified the intent to book a demo."
+    evaluator:
+      type: regex
+      pattern: "schedule|demo|software|book"
+```
+
+The framework’s `tests/conftest.py` automatically loads all YAML files in `data/*.yaml`.
+
+## Running tests
+
+Run the full test suite and generate reports:
+
+```bash
+export ENV=App3
+.venv/bin/pytest tests -vv -s --html=reports/qa_report.html --junitxml=reports/junit.xml
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:ENV = 'App3'
+.venv\Scripts\pytest tests -vv -s --html=reports\qa_report.html --junitxml=reports\junit.xml
+```
+
+## Report output
+
+- `reports/qa_report.html` — HTML report generated by `pytest-html`
+- `reports/junit.xml` — JUnit-style test results for CI integration
+- `transcripts/` — generated conversation transcripts
+
+## Debugging configuration
+
+The framework logs the resolved environment and selected bot ID during runtime. If you need to verify which credentials were chosen, check the test output.
+
+## Continuous integration
+
+This framework is ready for CI/CD integration through Jenkins, GitHub Actions, or similar systems.
+
+Example Jenkins steps:
+
+1. Checkout repository
+2. Create Python virtual environment
+3. Install dependencies
+4. Set `ENV` and any required secrets
+5. Run `pytest`
+6. Archive `reports/qa_report.html` and `reports/junit.xml`
+7. Publish test results
+
+## Notes
+
+- The framework is designed to allow QA and product teams to author scenarios in YAML without modifying Python code.
+- If you add new YAML files, they are automatically included in test execution.
+- Keep sensitive credentials out of source control if you use a shared repository. Prefer secret management or CI credentials.
+
+## Contact
+
+For questions about test case structure, environment mapping, or scenario creation, please reach out to the automation engineering team.

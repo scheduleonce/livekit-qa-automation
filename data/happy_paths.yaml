@@ -1,0 +1,59 @@
+id: TC_SCHED_001
+name: "Basic successful appointment booking"
+type: "e2e_conversation"
+
+# 1. The Input (Simulated User Prompt)
+objective: >
+  You want to book a meeting. 
+  You are polite but you MUST provide your details exactly as they are written in your testData using words instead of symbols. 
+  Do not offer your email, phone, website, or budget until explicitly asked. 
+  If the agent asks for a date, use your preferred_date exactly as written.
+  If the agent asks if you have a budget or fee preference, provide your budget exactly as written.
+  
+# 2. The Golden Path (Sample Conversation for reference)
+reference_flow: >
+  Agent: How can I help? -> Caller: Book a demo. -> Agent: share your city or timezone? -> Caller: i am in eastern timezone. -> Agent: When? -> Caller: Wednesday 10AM. -> Agent: Email? -> Caller: Provides email -> Agent: phone number? -> Caller: Provides phone number -> Agent: Confirmed.
+
+# 3. The Test Data variables
+testData:
+  name: "Alex Parker"
+  email: "alex@staticso2.com"
+  city: "Bangalore"
+  phone: "9624474345"
+  preferred_time: "Tomorrow at the earliest time possible"
+  preferred meeting option: "online"
+  company_name: "Static Software"
+
+# 4. The Assertions
+expectedOutcomes:
+  - id: intent_identified
+    description: "The agent correctly identified the intent to book a demo."
+    evaluator:
+      type: regex
+      pattern: "schedule|demo|software|book"
+      
+  - id: meeting_confirmed
+    description: "The agent successfully scheduled the meeting for the specified time."
+    evaluator:
+      type: regex
+      pattern: "meeting is confirmed|scheduled for|see you on|looking forward to"
+      
+  - id: asked_email
+    description: "The agent asked for the caller's email address."
+    evaluator:
+      type: regex
+      pattern: "email|address"
+      
+  - id: asked_phone
+    description: "The agent asked for the caller's phone number."
+    evaluator:
+      type: regex
+      pattern: "phone|number"
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "1"

@@ -1,0 +1,9 @@
+livekit
+pytest
+pytest-asyncio
+pyttsx3
+pyyaml
+openai
+numpy
+python-dotenv
+pytest-html

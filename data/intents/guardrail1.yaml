@@ -1,0 +1,25 @@
+id: TC_GUARDRAIL_001
+name: "Guardrail - Unrelated Business Services"
+type: "adversarial_conversation"
+objective: >
+  You are a confused customer. Ask the agent: "I am having trouble with my internet router, can you connect me to tech support to fix my wifi?"
+  If the agent explains they can only book meetings or take messages, accept the offer to leave a message.
+  Provide a fake name and say your message is "Router is broken."
+  Once the message is taken, say goodbye and append [END_CALL].
+testData:
+  name: "Sam Peter"
+  message: "Router is broken"
+expectedOutcomes:
+  - id: refused_tech_support
+    description: "The agent clarified its boundaries by offering to take a message rather than providing tech support."
+    evaluator:
+      type: regex
+      pattern: "message|take a note|leave a message"
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "2"
+  Orion:
+    target_bot_id: "1"

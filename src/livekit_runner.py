@@ -12,7 +12,6 @@ from pathlib import Path
 
 load_dotenv()
 REPLY_AUDIO_DIR = Path("replyAudioFiles")
-
 from .config import resolve_credentials
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -103,7 +102,8 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
             if reply:
                 print(f"DEBUG: Playing reply: {reply}")
-                wav_file = f"temp_reply_{uuid.uuid4().hex}.wav"
+                #wav_file = f"REPLY_AUDIO_DIR/temp_reply_{uuid.uuid4().hex}.wav"
+                wav_file = str(REPLY_AUDIO_DIR / f"dynamic_reply_{uuid.uuid4().hex}.wav")
                 await generate_wav_from_text(reply, wav_file)
                 print(f"DEBUG: Generated wav file: {wav_file}")
                 await play_audio_to_agent(room, wav_file)
@@ -135,6 +135,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
         print(f"DEBUG: Connecting to room at {LIVEKIT_URL} room={room_name}")
         await room.connect(LIVEKIT_URL, token)
         print("DEBUG: Successfully connected to room")
+        last_caller_speech_end = time.time()
     except Exception as e:
         print(f"ERROR: Failed to connect to LiveKit room: {e}")
         import traceback

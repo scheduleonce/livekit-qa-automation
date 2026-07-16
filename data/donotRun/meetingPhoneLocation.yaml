@@ -1,4 +1,4 @@
-id: TC_SCHED_001
+id: TC_SCHED_PHONE_001
 name: "Basic successful appointment booking"
 type: "e2e_conversation"
 
@@ -16,13 +16,15 @@ reference_flow: >
 
 # 3. The Test Data variables
 testData:
-  name: "Alex Parker"
-  email: "alex@staticso2.com"
+  name: "Peter George"
+  email: "george@staticso2.com"
   city: "Bangalore"
-  phone: "9624474345"
+  phone_number: "9787635621"
+  phone_call_number: "9954543170"
   preferred_time: "Tomorrow at the earliest time possible"
-  preferred meeting option: "online"
-  company_name: "Static Software"
+  preferred meeting option: "phone"
+  company_name: "Vedanta"
+  budget: "thirty thousand dollars"
 
 # 4. The Assertions
 expectedOutcomes:
@@ -56,4 +58,4 @@ environments:
   App2:
     target_bot_id: "1"
   Orion:
-    target_bot_id: "1"
+    target_bot_id: "2"

@@ -1,12 +1,16 @@
-id: TC_SCHED_INPERSON_002
-name: "Basic successful appointment booking with in-person meeting location"
+id: TC_SCHED_001
+name: "Basic successful appointment booking"
 type: "e2e_conversation"
 
 # 1. The Input (Simulated User Prompt)
 objective: >
   You want to book a meeting. 
   You are polite but you MUST provide your details exactly as they are written in your testData using words instead of symbols. 
-  Do not offer your email, phone, website, or budget until explicitly asked. 
+  Do not offer your email, phone, website, or budget until explicitly asked.
+  When agent provides available timeslots and if it didn't mention about phone call, ask agent to have the meeting as a phone call. If agent agrees, then proceed with the flow, if agent insists on the meeting option you provided in preferred meeting option, then say that you are ok with that as well and proceed with the flow.
+  If the agent asks for a phone number, use your preferred_phone_number exactly as written.
+  If agent asks wheather to recieive sms notification say yes, and when asked if it can use the same number for sms notification, just say 'No'. Then when asked to provide new number for sms notification, use your preferred_sms_number exactly as written.
+  If agent asks if it can use the same number for the call, say no. Then when asked to provide new number for phome call, use your phone_call_number exactly as written.
   If the agent asks for a date, use your preferred_date exactly as written.
   If the agent asks if you have a budget or fee preference, provide your budget exactly as written.
   
@@ -16,17 +20,15 @@ reference_flow: >
 
 # 3. The Test Data variables
 testData:
-  name: "George Peter"
-  email: "peter6@staticso2.com"
-  city: "Dehradun"
-  phone: "9658474896"
-  preferred_time: "Next Monday"
-  preferred meeting option: "in person"
-  company_name: "Static Software"
-  budget: "twenty five thousand dollars"
-  company_name: "Static Software"
-  no. of employees: "five thousand"
-  budget: "twenty five thousand dollars"
+  name: "Mark Henry"
+  email: "mark@staticso2.com"
+  city: "Bangalore"
+  phone_number: "9958885621"
+  phone_call_number: "9967543166"
+  preferred_sms_number: "8824574345"
+  preferred_time: "Tomorrow at the earliest time possible"
+  preferred meeting option: "phone"
+  company_name: "Vedanta"
 
 # 4. The Assertions
 expectedOutcomes:
@@ -56,8 +58,8 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "1"
-  App2:
     target_bot_id: "2"
-  Orion:
+  App2:
     target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"

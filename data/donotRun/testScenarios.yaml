@@ -1,4 +1,4 @@
-id: TC_OOB_INTENT_001
+id: TC_OOB_INTENT_PROMPTINJECTION_001
 name: "Out of Bounds - System Override / Prompt Injection"
 type: "adversarial_conversation"
 objective: >
@@ -67,7 +67,7 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "2"
+    target_bot_id: "3"
   App2:
     target_bot_id: "2"
   Orion:
@@ -93,7 +93,7 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "2"
+    target_bot_id: "3"
   App2:
     target_bot_id: "2"
   Orion:

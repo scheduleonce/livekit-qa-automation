@@ -6,5 +6,6 @@ pyttsx3
 pyyaml
 openai
 numpy
+scipy
 python-dotenv
 pytest-html

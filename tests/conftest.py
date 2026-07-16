@@ -4,7 +4,15 @@ import glob
 import os
 import asyncio
 import gc
+import warnings
 from html import escape
+from pathlib import Path
+
+from src.llm_performance_analyzer import build_smart_agent_performance_report
+
+def pytest_addoption(parser):
+    parser.addini("generate_agent_performance_report", "Generate the agent performance report at pytest session end", type="bool", default=True)
+
 
 def pytest_generate_tests(metafunc):
     if "scenario" in metafunc.fixturenames:
@@ -45,6 +53,23 @@ def cleanup_after_test():
                 task.cancel()
     except RuntimeError:
         pass  # No event loop in current thread
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Generate a smart agent performance report after pytest completes."""
+    config = session.config
+    if not config.getini("generate_agent_performance_report"):
+        return
+
+    base_dir = Path(__file__).resolve().parents[1]
+    transcript_dir = base_dir / "transcripts"
+    output_path = base_dir / "reports" / "smart_agent_performance_report.csv"
+
+    try:
+        build_smart_agent_performance_report(transcript_dir, output_path)
+        warnings.warn(f"Smart agent performance report written to {output_path}", stacklevel=2)
+    except Exception as exc:
+        warnings.warn(f"Failed to build smart agent performance report: {exc}", stacklevel=2)
 
 
 @pytest.hookimpl(hookwrapper=True)

@@ -6,7 +6,11 @@ def evaluate_test_run(conversation_history: list, expected_outcomes: list) -> di
     Evaluates the conversation transcript against the regex patterns defined in the JSON scenario.
     """
     # Extract only the Agent's messages to evaluate what the agent said
-    agent_messages = [msg['content'] for msg in conversation_history if msg['role'] == 'assistant']
+    agent_messages = [
+        msg.get("content", "")
+        for msg in conversation_history
+        if msg.get("role") == "user"
+    ]
     full_agent_transcript = " ".join(agent_messages).lower()
     
     evaluation_results = []

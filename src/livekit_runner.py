@@ -80,17 +80,17 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
                 "I'm still working on",
                 "Great. I’ll proceed with that slot"
             ]
-            if any(phrase in agent_text.lower() for phrase in ignore_phrases):
-                print("DEBUG: Ignoring filler phrase")
-                first_word_received = False
-                return
-
 
             current_agent_message = {"role": "user", "content": agent_text}
             if current_agent_latency is not None:
                 current_agent_message["latency_sec"] = current_agent_latency
             caller.conversation_history.append(current_agent_message)
             current_agent_latency = None
+            
+            if any(phrase in agent_text.lower() for phrase in ignore_phrases):
+                print("DEBUG: Ignoring filler phrase")
+                first_word_received = False
+                return
             
 
             reply = await caller.generate_reply(agent_text)

@@ -5,7 +5,7 @@
     "API_SECRET": "IVmuyfz7nnL9QvK3Mye3sLPasSBLb0ttEjKSsycoQl1",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-A7E3783E08" },
-      { "id": "2", "value": "AIBOT-A8DFEBECDD" }
+      { "id": "2", "value": "AIBOT-0198E02F80" }
     ]
   },
   "App3": {
@@ -14,7 +14,10 @@
     "API_SECRET": "NLdp1R9yEK2c1UjjCtEQsK2jwnuT4BJJav8FiGMk2WH",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-CE035B9771" },
-      { "id": "2", "value": "AIBOT-8BAD00C462" }
+      { "id": "2", "value": "AIBOT-8BAD00C462" },
+      { "id": "3", "value": "AIBOT-F2FC13FAEC" },
+      { "id": "4", "value": "AIBOT-49CD6FD69C" },
+      { "id": "5", "value": "AIBOT-D716F94558" }
     ]
   },
   "App2": {
@@ -23,7 +26,8 @@
     "API_SECRET": "Aq68MD2cxMlCsuePfaJteZiGkbuR3FCHxzfJ6tg8wcVB",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-0A4BFD3E2D" },
-      { "id": "2", "value": "AIBOT-69D8D92446" }
+      { "id": "2", "value": "AIBOT-69D8D92446" },
+      { "id": "3", "value": "AIBOT-F15A811503" }
     ]
   }
 }

@@ -7,6 +7,7 @@ import gc
 import warnings
 from html import escape
 from pathlib import Path
+import re  # add near other imports
 
 from src.llm_performance_analyzer import build_smart_agent_performance_report
 
@@ -55,21 +56,21 @@ def cleanup_after_test():
         pass  # No event loop in current thread
 
 
-def pytest_sessionfinish(session, exitstatus):
-    """Generate a smart agent performance report after pytest completes."""
-    config = session.config
-    if not config.getini("generate_agent_performance_report"):
-        return
+# def pytest_sessionfinish(session, exitstatus):
+#     """Generate a smart agent performance report after pytest completes."""
+#     config = session.config
+#     if not config.getini("generate_agent_performance_report"):
+#         return
 
-    base_dir = Path(__file__).resolve().parents[1]
-    transcript_dir = base_dir / "transcripts"
-    output_path = base_dir / "reports" / "smart_agent_performance_report.csv"
+#     base_dir = Path(__file__).resolve().parents[1]
+#     transcript_dir = base_dir / "transcripts"
+#     output_path = base_dir / "reports" / "smart_agent_performance_report.csv"
 
-    try:
-        build_smart_agent_performance_report(transcript_dir, output_path)
-        warnings.warn(f"Smart agent performance report written to {output_path}", stacklevel=2)
-    except Exception as exc:
-        warnings.warn(f"Failed to build smart agent performance report: {exc}", stacklevel=2)
+#     try:
+#         build_smart_agent_performance_report(transcript_dir, output_path)
+#         warnings.warn(f"Smart agent performance report written to {output_path}", stacklevel=2)
+#     except Exception as exc:
+#         warnings.warn(f"Failed to build smart agent performance report: {exc}", stacklevel=2)
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -121,6 +122,22 @@ def pytest_runtest_makereport(item, call):
     extras = getattr(rep, "extra", []) or []
     try:
         extras.append(html_plugin.extras.html(f"<h3>Transcript: {escape(test_id)}</h3><pre>{escape(content)}</pre>"))
+
+        log_text = []
+        for section_name, section_content in getattr(rep, "sections", []):
+            if section_name.startswith("Captured log"):
+                filtered_lines = [
+                    ln for ln in section_content.splitlines()
+                    if re.search(r"\b(INFO|ERROR)\b", ln)
+                ]
+                if filtered_lines:
+                    log_text.append(f"=== {section_name} ===\n" + "\n".join(filtered_lines))
+
+        if log_text:
+            extras.append(html_plugin.extras.html(
+                f"<h3>Captured logs: {escape(test_id)}</h3><pre>{escape('\n\n'.join(log_text))}</pre>"
+            ))
+
         rep.extra = extras
     except Exception:
         # best-effort: ignore errors attaching extras

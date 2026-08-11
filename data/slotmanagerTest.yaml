@@ -1,0 +1,74 @@
+id: TC_SCHED_SLOT_RANGE_001
+name: "Slot Manager - Date Range, Time Constraint, and Slot Negotiation"
+type: "e2e_conversation"
+
+# 1. The Input (Simulated User Prompt)
+objective: >
+  You want to book an online meeting. 
+  You are polite but you MUST provide your details exactly as they are written in your testData using words instead of symbols. 
+  When asked for a time or when you initiate the booking, use your preferred_date_range exactly as written.
+  If the agent offers times in the afternoon or asks for a time preference, state your preferred_time_of_day.
+  Once the agent offers a specific time that matches your date range and time of day, accept it.
+  Do not offer your email, phone, or company until explicitly asked. 
+  
+# 2. The Golden Path (Sample Conversation for reference)
+reference_flow: >
+  Caller: I want to book an online meeting next week between July 14th and July 17th. -> Agent: What time zone are you in? -> Caller: Pacific Time. -> Agent: I have availability on July 15th at 2 PM or July 16th at 10 AM. -> Caller: Do you have anything in the mornings? -> Agent: Yes, how about July 16th at 10 AM? -> Caller: That works for me. -> Agent: Email? -> Caller: Provides email -> Agent: Phone number? -> Caller: Provides phone -> Agent: Confirmed.
+
+# 3. The Test Data variables
+testData:
+  name: "Sarah connor"
+  email: "sarah.connor@staticso2.com"
+  timezone: "India Time"
+  phone_number: "9858675309"
+  preferred_date_range: "anytime next month from 14th to 19th"
+  preferred_time_of_day: "mornings only, around 10 AM if possible"
+  meeting_option: "online"
+  company_name: "Cyberdyne"
+
+# 4. The Assertions
+expectedOutcomes:
+  - id: intent_identified
+    description: "The agent correctly identified the intent to schedule a meeting."
+    evaluator:
+      type: regex
+      pattern: "schedule|demo|software|book|meeting"
+      
+  - id: date_range_acknowledged
+    description: "The agent processed the date range and offered a date within July 14 to July 17."
+    evaluator:
+      type: regex
+      # Looks for the agent mentioning a date within the requested range
+      pattern: "July 14|July 15|July 16|July 17|14th|15th|16th|17th"
+
+  - id: time_constraint_acknowledged
+    description: "The agent respected the morning constraint and offered an AM slot."
+    evaluator:
+      type: regex
+      pattern: "10:00 AM|10 AM|11:00 AM|11 AM|morning"
+
+  - id: asked_email
+    description: "The agent asked for the caller's email address."
+    evaluator:
+      type: regex
+      pattern: "email|address"
+      
+  - id: asked_phone
+    description: "The agent asked for the caller's phone number."
+    evaluator:
+      type: regex
+      pattern: "phone|number"
+
+  - id: meeting_confirmed
+    description: "The agent successfully scheduled the meeting for the negotiated time."
+    evaluator:
+      type: regex
+      pattern: "meeting is confirmed|scheduled for|see you on|looking forward to"
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"

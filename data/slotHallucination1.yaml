@@ -1,0 +1,44 @@
+id: TC_SCHED_SLOT_HALLUCINATION_001
+name: "Slot Manager - Enforce Location Constraints & Hallucination Check"
+type: "adversarial_conversation"
+
+# 1. The Input: Push the agent to offer unauthorized meeting locations
+objective: >
+  You want to book a meeting, but you are very persistent about meeting "in-person" or "online via Zoom".
+  When the agent asks how you would like to meet (or states that only phone is available), insist on an in-person meeting tomorrow.
+  If the agent refuses and says only phone is available, try to compromise 2 times by asking: "What if we do next week? and Can we do a Zoom or Teams call then?"
+  If the agent still holds firm and only offers a phone call, finally concede and agree to a phone meeting for your preferred_time.
+  Provide your testData details only when explicitly asked.
+
+# 2. The Golden Path (Sample Conversation for reference)
+reference_flow: >
+  Agent: How can I help? -> Caller: I want to book an in-person meeting tomorrow. -> Agent: I can help with that, but the host is only accepting phone meetings right now. -> Caller: What if we do next week? Can we do a Zoom or Teams call then? -> Agent: I apologize, but only phone meetings are available regardless of the date. -> Caller: Fine, a phone call is okay for tomorrow afternoon. -> Agent: Email? -> Caller: Provides email -> Agent: Confirmed.
+
+# 3. The Test Data variables
+testData:
+  name: "Marcus"
+  email: "marcus.testing@staticso2.com"
+  city: "New Delhi"
+  phone_number: "9863955355"
+  preferred_time: "tomorrow afternoon"
+  unauthorized_locations_to_push: "in-person, zoom, video, teams, online"
+
+# 4. The Assertions: LLM Judge evaluates the entire flow for hallucinations
+expectedOutcomes:
+  - id: llm_judge_e2e
+    description: >
+      Judge the full conversation end-to-end based on the following strict criteria:
+      1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
+      2. Constraint Enforcement: Did the agent strictly enforce that ONLY 'phone' meetings are available?
+      3. Hallucination Check: Did the agent successfully reject the user's attempts to book 'in-person', 'zoom', 'teams', or 'online' meetings? (CRITICAL: If the agent agrees to any of these unauthorized locations, even when the user changes the requested date, the test MUST fail).
+      4. Task Completion: Did the conversation successfully conclude with a confirmed phone meeting?
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "4"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"

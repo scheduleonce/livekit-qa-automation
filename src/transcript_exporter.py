@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import os
 import uuid
 from pathlib import Path
 
@@ -21,7 +22,8 @@ class TranscriptExporter:
             return ""
         
         timestamp = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
-        file_path = self.output_dir / f"transcript_{test_id}_{timestamp}.txt"
+        ENV = os.getenv("ENV")
+        file_path = self.output_dir / f"transcript_{ENV}_{test_id}_{timestamp}.txt"
         
         try:
             with open(file_path, "w", encoding="utf-8") as f:

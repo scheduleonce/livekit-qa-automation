@@ -1,8 +1,8 @@
 {
   "Orion": {
-    "LIVEKIT_URL": "wss://orion-qx3o4v38.livekit.cloud",
-    "API_KEY": "APIrCs7DkAcCXDk",
-    "API_SECRET": "BVjjPKRSfaByhW77kt1J0JtF1fTh0g0zg5xb09nyNeoA",
+    "LIVEKIT_URL": "wss://orion-7o1896db.livekit.cloud",
+    "API_KEY": "APItqppEiNYKyw9",
+    "API_SECRET": "pEpE3lI155chaZatxMaEdeMawyDOA5ezplre3SnZrOhB",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-A7E3783E08" },
       { "id": "2", "value": "AIBOT-0198E02F80" },
@@ -18,7 +18,7 @@
       { "id": "2", "value": "AIBOT-6AD8EDED13" },
       { "id": "3", "value": "AIBOT-5FCA010504" },
       { "id": "4", "value": "AIBOT-2E0725903E" },
-      { "id": "5", "value": "AIBOT-FA1D274386" },
+      { "id": "5", "value": "AIBOT-D716F94558" },
       { "id": "6", "value": "AIBOT-5E845D91CA" },
       { "id": "7", "value": "AIBOT-6D0FD0E8A9" },
       { "id": "8", "value": "AIBOT-CFB437FDC4" },
@@ -32,9 +32,7 @@
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-0A4BFD3E2D" },
       { "id": "2", "value": "AIBOT-69D8D92446" },
-      { "id": "3", "value": "AIBOT-F15A811503" },
-      {"id": "4", "value": "AIBOT-9619F87194" },
-      { "id": "5", "value": "AIBOT-94CC7965EF" }
+      { "id": "3", "value": "AIBOT-F15A811503" }
     ]
   }
 }

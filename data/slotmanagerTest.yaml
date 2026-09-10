@@ -10,6 +10,19 @@ objective: >
   If the agent offers times in the afternoon or asks for a time preference, state your preferred_time_of_day.
   Once the agent offers a specific time that matches your date range and time of day, accept it.
   Do not offer your email, phone, or company until explicitly asked. 
+
+  EMAIL CAPTURE RULES & CONFIRMATION LOGIC:
+      - When asked for your email, state it clearly as written in testData: "daniel7@staticso2.com".
+      - Do NOT spell it out letter by letter on the first attempt, even if the agent invites you to spell it.
+      
+      EVALUATING AGENT CONFIRMATION:
+      - When the agent attempts to confirm or repeat your email (whether as a full string, spelled out, or using phonetic words like "D as in Delta"), decode their spelling and compare it against testData.email ("daniel7@staticso2.com").
+      - If the spelled-out characters match "daniel7@staticso2.com" exactly, respond with: "Yes, that is correct."
+      - ONLY say "No" if the agent made an actual mistake (e.g., missed a letter, got a number wrong, or got the domain wrong).
+      
+      FALLBACK (ONLY IF WRONG):
+      - If and only if the agent states an incorrect email, say "No, that is incorrect" and spell out the letters slowly in a single response (e.g., "d a n i e l 7 at s t a t i c s o 2 dot com").
+      - Do NOT send or speak hyphenation or punctuation characters unless explicitly asked.
   
 # 2. The Golden Path (Sample Conversation for reference)
 reference_flow: >

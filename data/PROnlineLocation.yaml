@@ -1,4 +1,4 @@
-id: TC_SCHED_ONLINE_001
+id: PR_TC_SCHED_ONLINE_001
 name: "Basic successful appointment booking"
 type: "e2e_conversation"
 
@@ -52,7 +52,7 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "1" #previous value - 2
+    target_bot_id: "5" #previous value - 2
   App2:
     target_bot_id: "1"
   Orion:

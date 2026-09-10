@@ -1,4 +1,4 @@
-id: TC_SCHED_SLOT_HALLUCINATION_001
+id: TC_Inperson_GuestLocation_001
 name: "Slot Manager - Enforce Location Constraints & Hallucination Check"
 type: "adversarial_conversation"
 
@@ -22,7 +22,7 @@ testData:
   phone_number: "9863955355"
   preferred_time: "tomorrow afternoon"
   preferred meeting option: "in person"
-  location option: ""
+  address: "123 main town"
 
 # 4. The Assertions: LLM Judge evaluates the entire flow for hallucinations
 expectedOutcomes:
@@ -40,6 +40,6 @@ environments:
   App3:
     target_bot_id: "4"
   App2:
-    target_bot_id: "1"
+    target_bot_id: "5"
   Orion:
     target_bot_id: "2"

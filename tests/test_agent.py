@@ -35,8 +35,12 @@ async def test_voice_agent(scenario):
         if result["success"]:
             print(f"PASSED: {scenario['id']}")
         else:
-            print(f"FAILED: {scenario['id']} - Failed patterns: {result['details']}")
-            # Optionally, you can still fail the test if you want, but for now logging only
+            failure_details = result.get("details", [])
+            reasoning = result.get("reasoning", "")
+            pytest.fail(
+                f"{scenario['id']} failed evaluation. "
+                f"Details: {failure_details}. Reasoning: {reasoning}"
+            )
     finally:
         # Ensure proper cleanup of caller's async client
         if 'caller' in locals():

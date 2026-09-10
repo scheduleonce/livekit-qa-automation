@@ -5,14 +5,15 @@ import os
 import asyncio
 import gc
 import warnings
+import configparser
 from html import escape
 from pathlib import Path
 import re  # add near other imports
 
-from src.llm_performance_analyzer import build_smart_agent_performance_report
+#from src.llm_performance_analyzer import build_smart_agent_performance_report
 
-def pytest_addoption(parser):
-    parser.addini("generate_agent_performance_report", "Generate the agent performance report at pytest session end", type="bool", default=True)
+# def pytest_addoption(parser):
+#     parser.addini("generate_agent_performance_report", "Generate the agent performance report at pytest session end", type="bool", default=True)
 
 
 def pytest_generate_tests(metafunc):
@@ -59,7 +60,14 @@ def cleanup_after_test():
 # def pytest_sessionfinish(session, exitstatus):
 #     """Generate a smart agent performance report after pytest completes."""
 #     config = session.config
-#     if not config.getini("generate_agent_performance_report"):
+#     setting = "true"
+#     if config.inipath:
+#         ini_config = configparser.ConfigParser()
+#         ini_config.read(config.inipath, encoding="utf-8")
+#         setting = ini_config.get(
+#             "tool:pytest", "generate_agent_performance_report", fallback="true"
+#         )
+#     if str(setting).strip().lower() not in {"1", "true", "yes", "on"}:
 #         return
 
 #     base_dir = Path(__file__).resolve().parents[1]
@@ -99,7 +107,8 @@ def pytest_runtest_makereport(item, call):
 
     test_id = str(scenario.get("id", "unknown"))
     transcripts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "transcripts")
-    pattern = os.path.join(transcripts_dir, f"transcript_{test_id}_*.txt")
+    # TranscriptExporter includes the environment between the prefix and test ID.
+    pattern = os.path.join(transcripts_dir, f"transcript_*_{test_id}_*.txt")
     matches = glob.glob(pattern)
     if not matches:
         return
@@ -119,26 +128,11 @@ def pytest_runtest_makereport(item, call):
     if not html_plugin:
         return
 
-    extras = getattr(rep, "extra", []) or []
+    extras_attribute = "extras" if hasattr(rep, "extras") else "extra"
+    extras = getattr(rep, extras_attribute, []) or []
     try:
         extras.append(html_plugin.extras.html(f"<h3>Transcript: {escape(test_id)}</h3><pre>{escape(content)}</pre>"))
-
-        log_text = []
-        for section_name, section_content in getattr(rep, "sections", []):
-            if section_name.startswith("Captured log"):
-                filtered_lines = [
-                    ln for ln in section_content.splitlines()
-                    if re.search(r"\b(INFO|ERROR)\b", ln)
-                ]
-                if filtered_lines:
-                    log_text.append(f"=== {section_name} ===\n" + "\n".join(filtered_lines))
-
-        if log_text:
-            extras.append(html_plugin.extras.html(
-                f"<h3>Captured logs: {escape(test_id)}</h3><pre>{escape('\n\n'.join(log_text))}</pre>"
-            ))
-
-        rep.extra = extras
+        setattr(rep, extras_attribute, extras)
     except Exception:
         # best-effort: ignore errors attaching extras
         pass

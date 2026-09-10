@@ -124,6 +124,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             "is_preview": True,
             "bot_external_id": BOT_ID,
             "scenario_id": scenario_id,
+            "iana_timezone":"Asia/Kolkata"
         }
     )
     token = api.AccessToken(API_KEY, API_SECRET) \

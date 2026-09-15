@@ -128,11 +128,13 @@ def pytest_runtest_makereport(item, call):
     if not html_plugin:
         return
 
-    extras_attribute = "extras" if hasattr(rep, "extras") else "extra"
-    extras = getattr(rep, extras_attribute, []) or []
     try:
-        extras.append(html_plugin.extras.html(f"<h3>Transcript: {escape(test_id)}</h3><pre>{escape(content)}</pre>"))
-        setattr(rep, extras_attribute, extras)
+        rep.extras = getattr(rep, "extras", []) or []
+        rep.extras.append(
+            html_plugin.extras.html(
+                f"<h3>Transcript: {escape(test_id)}</h3><pre>{escape(content)}</pre>"
+            )
+        )
     except Exception:
         # best-effort: ignore errors attaching extras
         pass

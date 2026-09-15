@@ -6,7 +6,8 @@
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-A7E3783E08" },
       { "id": "2", "value": "AIBOT-0198E02F80" },
-      { "id": "3", "value": "AIBOT-659717D44A" }
+      { "id": "3", "value": "AIBOT-659717D44A" },
+      {"id": "4", "value": "AIBOT-628E82EB72" }
     ]
   },
   "App3": {

@@ -1,5 +1,5 @@
-id: TC_SCHED_INPERSON_002
-name: "Basic successful appointment booking with in-person meeting location"
+id: PR_TC_SCHED_ONLINE_001
+name: "Basic successful appointment booking"
 type: "e2e_conversation"
 
 # 1. The Input (Simulated User Prompt)
@@ -29,17 +29,14 @@ reference_flow: >
 
 # 3. The Test Data variables
 testData:
-  name: "George Peter"
-  email: "peter8@staticso2.com"
-  city: "Mumbai"
-  phone: "9658474100"
-  preferred_time: "Next Monday"
-  preferred meeting option: "in person"
-  company_name: "Static Software"
-  budget: "twenty five thousand dollars"
-  company_name: "Static Software"
-  no. of employees: "five thousand"
-  budget: "twenty five thousand dollars"
+  name: "James peter"
+  email: "james@staticso2.com"
+  city: "New Delhi"
+  phone_number: "9847635355"
+  preferred_time: "Tomorrow at the earliest time possible"
+  preferred meeting option: "online"
+  company_name: "Vedanta"
+  budget: "thirty thousand dollars"
 
 # 4. The Assertions
 expectedOutcomes:
@@ -49,8 +46,7 @@ expectedOutcomes:
       1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
       2. Email capture: Did the agent asked for email and captured email correctly?
       3. Phone capture: Did the agent asked for phone number and captured it correctly?
-      4. Task Completion: Did the conversation successfully conclude with a confirmed meeting at selected location and email, sms notificaion confirmation?
-
+      4. Task Completion: Did the conversation successfully conclude with a confirmed online meeting?
       Next, perform a Holistic Quality & Hallucination Assessment:
       5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
          - Hallucinating facts, policies, locations, or business rules.
@@ -63,8 +59,8 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "2"
+    target_bot_id: "5" #previous value - 2
   App2:
-    target_bot_id: "2"
+    target_bot_id: "1"
   Orion:
     target_bot_id: "1"

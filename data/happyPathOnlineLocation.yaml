@@ -46,7 +46,15 @@ expectedOutcomes:
       1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
       2. Email capture: Did the agent asked for email and captured email correctly?
       3. Phone capture: Did the agent asked for phone number and captured it correctly?
-      4. Task Completion: Did the conversation successfully conclude with a confirmed online meeting?
+      4. Task Completion: Did the conversation successfully conclude with a confirmed online meeting and email, sms notificaion confirmation?
+
+      Next, perform a Holistic Quality & Hallucination Assessment:
+      5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
+         - Hallucinating facts, policies, locations, or business rules.
+         - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
+         - Ignoring user inputs or abruptly dropping context.
+         - Getting stuck in repetitive loops or outputting raw system text/code.
+      The interaction must be logically sound, strictly bounded to its persona, and completely free of hallucinations from start to finish.
     evaluator:
       type: llm_judge
 
@@ -56,4 +64,4 @@ environments:
   App2:
     target_bot_id: "1"
   Orion:
-    target_bot_id: "1"
+    target_bot_id: "4"

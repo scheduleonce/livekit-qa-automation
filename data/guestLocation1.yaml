@@ -19,7 +19,7 @@ testData:
   name: "Marcus"
   email: "marcus.testing@staticso2.com"
   city: "New Delhi"
-  phone_number: "9863955355"
+  phone_number: "double eight nine four triple six seven double two"
   preferred_time: "tomorrow afternoon"
   preferred meeting option: "in person"
   address: "123 main town"
@@ -30,9 +30,16 @@ expectedOutcomes:
     description: >
       Judge the full conversation end-to-end based on the following strict criteria:
       1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
-      2. Constraint Enforcement: Did the agent strictly enforce that ONLY 'phone' meetings are available?
-      3. Hallucination Check: Did the agent successfully reject the user's attempts to book 'in-person', 'zoom', 'teams', or 'online' meetings? (CRITICAL: If the agent agrees to any of these unauthorized locations, even when the user changes the requested date, the test MUST fail).
-      4. Task Completion: Did the conversation successfully conclude with a confirmed phone meeting?
+      2. Constraint Enforcement: Did the agent mention that the caller can provide their own address for in-person meetings?
+      3. Did agent accepted caller's provided address for in-person meetings correctly?
+      4. Task Completion: Did the conversation successfully conclude with a confirmed meeting at the provided address?
+      Next, perform a Holistic Quality & Hallucination Assessment:
+      5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
+         - Hallucinating facts, policies, locations, or business rules.
+         - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
+         - Ignoring user inputs or abruptly dropping context.
+         - Getting stuck in repetitive loops or outputting raw system text/code.
+      The interaction must be logically sound, strictly bounded to its persona, and completely free of hallucinations from start to finish.
     evaluator:
       type: llm_judge
 

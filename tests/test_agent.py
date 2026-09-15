@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from dotenv import load_dotenv
 from src.llm_judge import judge_transcript_file
@@ -32,8 +34,24 @@ async def test_voice_agent(scenario):
         # print(result)
         
         # 4. Log results (removed assert to allow complete execution)
+        validation_details = result.get("details", [])
+        for validation in validation_details:
+            validation_id = validation.get("id", "unknown")
+            status = "PASSED" if validation.get("passed", False) else "FAILED"
+            description = validation.get("description") or validation.get("rationale", "")
+            detail = (
+                f"LLM judge {status} validation: {validation_id}"
+                f" | description/rationale: {description}"
+            )
+            logging.warning(detail)
+
         if result["success"]:
             print(f"PASSED: {scenario['id']}")
+
+            reasoning = result.get("reasoning", "")
+            if reasoning:
+                print(f"PASSED evaluation reasoning: {reasoning}")
+                logging.warning("LLM judge passed evaluation reasoning: %s", reasoning)
         else:
             failure_details = result.get("details", [])
             reasoning = result.get("reasoning", "")

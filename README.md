@@ -13,7 +13,7 @@ This repository contains a voice automation framework for validating AI phone ag
 ## Key benefits
 
 - **No-code scenario updates:** Test cases are defined in YAML files, not Python code.
-- **Environment-driven execution:** `ENV` selects the target environment and bot config.
+- **Environment-driven execution:** `APP_ENV` or `TEST_ENV` selects the target environment and bot config.
 - **Reusable configuration:** Centralized credentials in `data/livekit_config.json` and bot mapping in YAML.
 - **Automated validation:** The framework evaluates agent responses against expected outcomes.
 - **Clear reporting:** Test artifacts are saved to `reports/` for team review.
@@ -71,25 +71,37 @@ python -m venv .venv
 
 ## Configuration
 
-### 1. Set the environment
+### 1. Set the target environment
 
-The framework reads the active environment from the `ENV` environment variable.
+The framework checks environment variables in this order:
+
+1. `APP_ENV`
+2. `TEST_ENV`
+3. `ENV` (legacy compatibility)
+4. `App3` (local-development default)
 
 Examples:
 
 ```bash
-export ENV=App3
+export APP_ENV=App3
 ```
 
 ```powershell
-$env:ENV = 'App3'
+$env:APP_ENV = 'App3'
 ```
 
-If `ENV` is not set, the current code may default to a configured environment. It is recommended to explicitly set it.
+For local development, copy `.env.example` to `.env`. The loader reads `.env` without overriding values already supplied by the shell or Jenkins.
 
 ### 2. Configure LiveKit credentials and bot id
 
-The file `data/livekit_bot_config.json` contains environment-specific credential and bot mappings.
+Credential resolution is ordered as follows:
+
+1. `LIVEKIT_URL`, `API_KEY`, and `API_SECRET` environment variables.
+2. The matching environment in `data/livekit_bot_config.json` for local fallback.
+
+If any environment credential is set, all three must be set; partial configuration fails fast. `BOT_ID` may be supplied as an environment variable, otherwise the scenario YAML `target_bot_id` is mapped through the JSON `BOT_ID` list.
+
+The JSON file contains environment-specific credential and bot mappings for local fallback. Do not commit real credentials. The existing credentials in any previously committed copy should be rotated and replaced with local `.env` values or Jenkins credentials.
 
 Example:
 
@@ -132,8 +144,8 @@ environments:
 
 ## How the framework resolves configuration
 
-1. `ENV` is read from the environment.
-2. `data/livekit_bot_config.json` is parsed to load the matching environment credentials.
+1. `APP_ENV`, `TEST_ENV`, legacy `ENV`, or the `App3` local default is selected.
+2. Jenkins/shell credentials are read first; otherwise `.env`/`data/livekit_bot_config.json` provide local fallback values.
 3. The active YAML scenario file is parsed for `environments -> <ENV> -> target_bot_id`.
 4. The JSON `BOT_ID` array is searched for the matching ID and the corresponding bot value is selected.
 
@@ -174,14 +186,14 @@ The framework’s `tests/conftest.py` automatically loads all YAML files in `dat
 Run the full test suite and generate reports:
 
 ```bash
-export ENV=App3
+export APP_ENV=App3
 .venv/bin/pytest tests -vv -s --html=reports/qa_report.html --junitxml=reports/junit.xml
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:ENV = 'App3'
+$env:APP_ENV = 'App3'
 .venv\Scripts\pytest tests -vv -s --html=reports\qa_report.html --junitxml=reports\junit.xml
 ```
 
@@ -195,19 +207,89 @@ $env:ENV = 'App3'
 
 The framework logs the resolved environment and selected bot ID during runtime. If you need to verify which credentials were chosen, check the test output.
 
-## Continuous integration
+## Jenkins CI/CD setup
 
-This framework is ready for CI/CD integration through Jenkins, GitHub Actions, or similar systems.
+Use Jenkins Credentials for secrets. Do not place `API_KEY`, `API_SECRET`, or the LiveKit URL directly in a Jenkinsfile, job command, or repository file.
 
-Example Jenkins steps:
+### Jenkins prerequisites
 
-1. Checkout repository
-2. Create Python virtual environment
-3. Install dependencies
-4. Set `ENV` and any required secrets
-5. Run `pytest`
-6. Archive `reports/qa_report.html` and `reports/junit.xml`
-7. Publish test results
+- A Windows Jenkins agent with Python and network access to LiveKit.
+- Pipeline or Freestyle support.
+- Credentials Binding plugin.
+- HTML Publisher plugin if the HTML report should be browsable in Jenkins.
+
+### Create credentials
+
+In **Manage Jenkins > Credentials**, create three **Secret text** credentials:
+
+- `livekit-url` containing the target LiveKit WebSocket URL.
+- `livekit-api-key` containing the API key.
+- `livekit-api-secret` containing the API secret.
+
+Do not print these variables in build steps. Rotate any credentials that were committed in `data/livekit_bot_config.json` before relying on Jenkins.
+
+### Create a Pipeline job
+
+1. Select **New Item > Pipeline**.
+2. Choose **Pipeline script from SCM**, select Git, and configure the repository URL and branch.
+3. Add the following pipeline script, replacing `YOUR_AGENT_LABEL` and credential IDs if needed:
+
+```groovy
+pipeline {
+  agent { label 'YOUR_AGENT_LABEL' }
+
+  parameters {
+    choice(name: 'APP_ENV', choices: ['App3', 'App2', 'Orion'], description: 'Target environment')
+  }
+
+  stages {
+    stage('Install') {
+      steps {
+        bat 'py -3 -m venv .venv'
+        bat '.venv\\Scripts\\python -m pip install --upgrade pip'
+        bat '.venv\\Scripts\\pip install -r requirements.txt'
+      }
+    }
+    stage('Run QA tests') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'livekit-url', variable: 'LIVEKIT_URL'),
+          string(credentialsId: 'livekit-api-key', variable: 'API_KEY'),
+          string(credentialsId: 'livekit-api-secret', variable: 'API_SECRET')
+        ]) {
+          bat '.venv\\Scripts\\pytest tests -vv -s --html=reports\\qa_report.html --junitxml=reports\\junit.xml'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      junit 'reports/junit.xml'
+      publishHTML(target: [
+        allowMissing: true,
+        alwaysLinkToLastBuild: true,
+        keepAll: true,
+        reportDir: 'reports',
+        reportFiles: 'qa_report.html',
+        reportName: 'QA HTML Report'
+      ])
+      archiveArtifacts artifacts: 'reports/**,transcripts/**', allowEmptyArchive: true
+    }
+  }
+}
+```
+
+Jenkins automatically exposes the parameter as `APP_ENV`; the three bound credentials are available only during the test stage. The test fails if only part of the credential set is present.
+
+### Manage the job safely
+
+- Keep the job parameterized so a user selects `App3`, `App2`, or `Orion` per run.
+- Restrict credential-management permissions to trusted administrators.
+- Mask secrets in console output and never echo them in PowerShell or batch commands.
+- Archive reports and transcripts, but review transcripts for personal data before sharing them broadly.
+- Rotate LiveKit credentials periodically and immediately after accidental exposure.
+- Use a separate Jenkins credential set per environment when environments have different access controls.
 
 ## Notes
 

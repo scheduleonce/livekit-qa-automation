@@ -20,7 +20,7 @@ def pytest_generate_tests(metafunc):
     if "scenario" in metafunc.fixturenames:
         scenarios = []
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        yaml_files = glob.glob(os.path.join(base_dir, "data", "*.yaml"))
+        yaml_files = glob.glob(os.path.join(base_dir, "data/testDataToRun", "**", "*.yaml"), recursive=True)
         
         for file in yaml_files:
             with open(file, 'r') as f:

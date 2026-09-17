@@ -12,14 +12,11 @@ from pathlib import Path
 
 load_dotenv()
 REPLY_AUDIO_DIR = Path("replyAudioFiles")
-from .config import resolve_credentials
+from .config import get_target_environment, resolve_credentials
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 config_json_path = PROJECT_ROOT / "data" / "livekit_bot_config.json"
 default_happy_paths_yaml = PROJECT_ROOT / "data" / "happy_paths.yaml"
-ENV = os.getenv("ENV") or "App3"  # Default to App3 if ENV not set
-
-
 
 async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCaller]:
     """Runs a single test case in LiveKit and returns the conversation history."""
@@ -27,13 +24,16 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
     source_yaml = scenario_data.get("_source_file")
     yaml_path = Path(source_yaml) if source_yaml else default_happy_paths_yaml
     try:
-        LIVEKIT_URL, API_KEY, API_SECRET, BOT_ID = resolve_credentials(ENV, config_json_path, yaml_path)
+        target_env = get_target_environment()
+        LIVEKIT_URL, API_KEY, API_SECRET, BOT_ID = resolve_credentials(
+            target_env, config_json_path, yaml_path
+        )
     except Exception as e:
         print(f"Configuration error for scenario {scenario_data.get('id')}: {e}")
         raise
 
     # Debug: print selected environment and bot id
-    print(f"CONFIG: ENV={ENV}, selected BOT_ID={BOT_ID}")
+    print(f"CONFIG: ENV={target_env}, selected BOT_ID={BOT_ID}")
 
     room = rtc.Room()
     caller = SimulatedCaller(scenario_data)

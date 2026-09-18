@@ -60,6 +60,8 @@ pipeline {
 
           echo Verifying Python installation...
           ".venv\\Scripts\\python.exe" --version
+          if errorlevel 1 exit /b 1
+
           ".venv\\Scripts\\python.exe" -c "import asyncio; print(asyncio.Queue[str])"
           if errorlevel 1 exit /b 1
 
@@ -99,6 +101,38 @@ pipeline {
           echo "Selected environment: ${env.APP_ENV}"
           echo "LiveKit URL: ${env.LIVEKIT_URL}"
         }
+      }
+    }
+
+    stage('Check Azure Network Access') {
+      steps {
+        bat '''
+          @echo off
+
+          echo ==================================================
+          echo Jenkins outbound public IP
+          echo ==================================================
+
+          powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+            "$ProgressPreference='SilentlyContinue';" ^
+            "$publicIp = Invoke-RestMethod -Uri 'https://api.ipify.org' -TimeoutSec 30;" ^
+            "Write-Host ('Public IP: ' + $publicIp)"
+
+          if errorlevel 1 (
+              echo WARNING: Unable to determine Jenkins outbound IP
+          )
+
+          echo.
+          echo ==================================================
+          echo Azure OpenAI DNS resolution
+          echo ==================================================
+
+          nslookup hurricanesgpt4o.openai.azure.com
+
+          if errorlevel 1 (
+              echo WARNING: Azure OpenAI DNS lookup failed
+          )
+        '''
       }
     }
 

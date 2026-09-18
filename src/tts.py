@@ -1,97 +1,139 @@
 import asyncio
 import math
 import os
+import uuid
 import wave
 from pathlib import Path
 
+import edge_tts
+import imageio_ffmpeg
 import numpy as np
 from dotenv import load_dotenv
 from livekit import rtc
-from openai import AzureOpenAI
 from scipy import signal
 
 
 load_dotenv()
 
 
-def generate_wav_from_text_sync(text: str, filename: str) -> None:
-    """Generate a WAV file using Azure OpenAI TTS."""
-
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-    tts_deployment = os.getenv("AZURE_OPENAI_TTS_DEPLOYMENT")
-
-    required_variables = {
-        "AZURE_OPENAI_API_KEY": api_key,
-        "AZURE_OPENAI_ENDPOINT": endpoint,
-        "AZURE_OPENAI_API_VERSION": api_version,
-        "AZURE_OPENAI_TTS_DEPLOYMENT": tts_deployment,
-    }
-
-    missing_variables = [
-        name
-        for name, value in required_variables.items()
-        if not value
-    ]
-
-    if missing_variables:
-        raise RuntimeError(
-            "Missing Azure OpenAI TTS configuration: "
-            + ", ".join(missing_variables)
-        )
+async def generate_wav_from_text(
+    text: str,
+    filename: str,
+) -> None:
+    """Generate a 48 kHz mono WAV file using Edge Cloud TTS."""
 
     output_file = Path(filename)
+
     output_file.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    client = AzureOpenAI(
-        api_key=api_key,
-        azure_endpoint=endpoint,
-        api_version=api_version,
+    gender = os.getenv(
+        "VOICE_GENDER",
+        "male",
+    ).strip().lower()
+
+    if gender == "female":
+        voice = "en-US-AriaNeural"
+    else:
+        voice = "en-US-ChristopherNeural"
+
+    temporary_mp3 = output_file.with_name(
+        f"{output_file.stem}_{uuid.uuid4().hex}.mp3"
     )
 
     print(
-        "[TTS] Requesting speech audio from "
-        "Azure OpenAI deployment..."
+        f"[TTS] Generating Edge Cloud audio "
+        f"using voice {voice}..."
     )
 
-    with client.audio.speech.with_streaming_response.create(
-        model=tts_deployment,
-        voice="alloy",
-        input=text,
-        response_format="wav",
-    ) as response:
-        response.stream_to_file(str(output_file))
-
-    if not output_file.exists():
-        raise RuntimeError(
-            f"Azure OpenAI TTS did not create {output_file}"
+    try:
+        communicator = edge_tts.Communicate(
+            text=text,
+            voice=voice,
         )
 
-    if output_file.stat().st_size == 0:
-        raise RuntimeError(
-            f"Azure OpenAI TTS created an empty file: {output_file}"
+        await communicator.save(
+            str(temporary_mp3)
         )
 
+        if not temporary_mp3.exists():
+            raise RuntimeError(
+                "Edge TTS did not create an MP3 file"
+            )
 
-async def generate_wav_from_text(
-    text: str,
-    filename: str,
-) -> None:
-    """Generate speech without blocking the LiveKit event loop."""
+        if temporary_mp3.stat().st_size == 0:
+            raise RuntimeError(
+                "Edge TTS created an empty MP3 file"
+            )
 
-    print(f"[TTS] Generating audio for: '{text}'...")
+        print(
+            f"[TTS] Edge MP3 generated: "
+            f"{temporary_mp3.stat().st_size} bytes"
+        )
 
-    await asyncio.to_thread(
-        generate_wav_from_text_sync,
-        text,
-        filename,
-    )
+        ffmpeg_executable = (
+            imageio_ffmpeg.get_ffmpeg_exe()
+        )
 
-    print(f"[TTS] Audio saved to {filename}")
+        process = await asyncio.create_subprocess_exec(
+            ffmpeg_executable,
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(temporary_mp3),
+            "-ac",
+            "1",
+            "-ar",
+            "48000",
+            "-c:a",
+            "pcm_s16le",
+            str(output_file),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_message = stderr.decode(
+                "utf-8",
+                errors="replace",
+            )
+
+            raise RuntimeError(
+                "FFmpeg failed to convert Edge TTS "
+                f"audio to WAV: {error_message}"
+            )
+
+        if not output_file.exists():
+            raise RuntimeError(
+                f"WAV file was not created: {output_file}"
+            )
+
+        if output_file.stat().st_size == 0:
+            raise RuntimeError(
+                f"WAV file is empty: {output_file}"
+            )
+
+        print(
+            f"[TTS] Edge Cloud audio saved to "
+            f"{output_file} "
+            f"({output_file.stat().st_size} bytes)"
+        )
+
+    finally:
+        if temporary_mp3.exists():
+            try:
+                temporary_mp3.unlink()
+            except OSError as cleanup_error:
+                print(
+                    "[TTS] Warning: temporary MP3 "
+                    f"cleanup failed: {cleanup_error}"
+                )
 
 
 async def play_audio_to_agent(
@@ -100,13 +142,18 @@ async def play_audio_to_agent(
 ) -> None:
     """Stream a WAV file into LiveKit as microphone audio."""
 
-    print(f"\n[Bot Mic] Starting audio stream: {wav_filepath}")
+    print(
+        f"\n[Bot Mic] Starting audio stream: "
+        f"{wav_filepath}"
+    )
 
     with wave.open(wav_filepath, "rb") as wav:
         channels = wav.getnchannels()
         sample_rate = wav.getframerate()
         sample_width = wav.getsampwidth()
-        raw_data = wav.readframes(wav.getnframes())
+        raw_data = wav.readframes(
+            wav.getnframes()
+        )
 
     print(
         f"[Bot Mic] Input audio: "
@@ -138,7 +185,8 @@ async def play_audio_to_agent(
 
     else:
         raise ValueError(
-            f"Unsupported WAV sample width: {sample_width} bytes"
+            f"Unsupported WAV sample width: "
+            f"{sample_width} bytes"
         )
 
     if channels > 1:
@@ -154,12 +202,15 @@ async def play_audio_to_agent(
 
     if channels != 1:
         audio = audio.astype(np.int32)
+
         audio = np.mean(
             audio,
             axis=1,
         )
     else:
-        audio = audio[:, 0].astype(np.int32)
+        audio = audio[:, 0].astype(
+            np.int32
+        )
 
     target_sample_rate = 48000
 
@@ -210,13 +261,16 @@ async def play_audio_to_agent(
         source=rtc.TrackSource.SOURCE_MICROPHONE
     )
 
-    publication = await room.local_participant.publish_track(
-        track,
-        options,
+    publication = await (
+        room.local_participant.publish_track(
+            track,
+            options,
+        )
     )
 
     print(
-        "[Bot Mic] Waiting 1 second for UI subscription..."
+        "[Bot Mic] Waiting 1 second "
+        "for UI subscription..."
     )
 
     await asyncio.sleep(1.0)
@@ -225,7 +279,8 @@ async def play_audio_to_agent(
     bytes_per_frame = channels * sample_width
 
     chunk_size = int(
-        sample_rate * (chunk_duration_ms / 1000.0)
+        sample_rate
+        * (chunk_duration_ms / 1000.0)
     ) * bytes_per_frame
 
     offset = 0
@@ -242,7 +297,8 @@ async def play_audio_to_agent(
                 break
 
             num_frames = (
-                len(chunk_bytes) // bytes_per_frame
+                len(chunk_bytes)
+                // bytes_per_frame
             )
 
             frame = rtc.AudioFrame.create(
@@ -275,6 +331,8 @@ async def play_audio_to_agent(
         print("[Bot Mic] Finished speaking.")
 
     finally:
-        await room.local_participant.unpublish_track(
-            publication.sid
+        await (
+            room.local_participant.unpublish_track(
+                publication.sid
+            )
         )

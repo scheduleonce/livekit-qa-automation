@@ -2,10 +2,11 @@ livekit
 livekit-api
 pytest
 pytest-asyncio
-pyttsx3
 pyyaml
 openai
 numpy
 scipy
 python-dotenv
 pytest-html
+edge-tts==7.2.8
+imageio-ffmpeg

@@ -11,6 +11,7 @@ pipeline {
 
   environment {
     CI = 'true'
+    VOICE_PROVIDER = 'edge'
   }
 
   stages {
@@ -47,20 +48,25 @@ pipeline {
           )
 
           echo Creating Python 3.13 virtual environment...
-          "%UV_DIR%\\uv.exe" venv --python 3.13 ".venv"
+          "%UV_DIR%\\uv.exe" venv ^
+            --python 3.13 ^
+            ".venv"
+
           if errorlevel 1 exit /b 1
 
           echo Installing Python dependencies...
           "%UV_DIR%\\uv.exe" pip install ^
             --python ".venv\\Scripts\\python.exe" ^
             -r requirements.txt
+
           if errorlevel 1 exit /b 1
 
           echo Verifying Python installation...
           ".venv\\Scripts\\python.exe" --version
           if errorlevel 1 exit /b 1
 
-          ".venv\\Scripts\\python.exe" -c "import asyncio; print(asyncio.Queue[str])"
+          echo Verifying Edge TTS...
+          ".venv\\Scripts\\python.exe" -c "import edge_tts; import imageio_ffmpeg; print('Edge TTS and bundled FFmpeg are available')"
           if errorlevel 1 exit /b 1
 
           endlocal
@@ -107,7 +113,7 @@ pipeline {
         bat '''
           @echo off
 
-          ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT','AZURE_OPENAI_TTS_DEPLOYMENT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure variables: ' + ', '.join(missing); print('Azure OpenAI and TTS configuration is available')"
+          ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure variables: ' + ', '.join(missing); print('Azure OpenAI conversation configuration is available')"
 
           if errorlevel 1 exit /b 1
         '''
@@ -132,18 +138,25 @@ pipeline {
             ]
           ]
 
-          def selectedConfig = liveKitConfigs[params.APP_ENV]
+          def selectedConfig = (
+            liveKitConfigs[params.APP_ENV]
+          )
 
           if (!selectedConfig) {
-            error("Unsupported environment: ${params.APP_ENV}")
+            error(
+              "Unsupported environment: ${params.APP_ENV}"
+            )
           }
 
           env.APP_ENV = params.APP_ENV
           env.LIVEKIT_URL = selectedConfig.url
-          env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
+          env.LIVEKIT_CREDENTIAL_ID = (
+            selectedConfig.credentialId
+          )
 
           echo "Selected environment: ${env.APP_ENV}"
           echo "LiveKit URL: ${env.LIVEKIT_URL}"
+          echo "Voice provider: ${env.VOICE_PROVIDER}"
         }
       }
     }
@@ -165,9 +178,12 @@ pipeline {
                 exit /b 1
             )
 
-            if not exist "reports" mkdir "reports"
+            if not exist "reports" (
+                mkdir "reports"
+            )
 
             echo Running LiveKit tests for environment: %APP_ENV%
+            echo Voice provider: %VOICE_PROVIDER%
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^

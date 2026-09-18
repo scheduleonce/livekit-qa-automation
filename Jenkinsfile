@@ -9,6 +9,12 @@ pipeline {
     )
   }
 
+  environment {
+    AZURE_OPENAI_ENDPOINT = 'https://hurricanesgpt4o.openai.azure.com/'
+    OPENAI_API_VERSION = '2025-04-14'
+    AZURE_OPENAI_DEPLOYMENT = 'gpt-4.1-mini'
+  }
+
   stages {
     stage('Install Python and Dependencies') {
       steps {
@@ -23,6 +29,7 @@ pipeline {
 
           if not exist "%UV_DIR%\\uv.exe" (
               echo Downloading uv...
+
               powershell -NoProfile -ExecutionPolicy Bypass -Command ^
                 "$ProgressPreference='SilentlyContinue';" ^
                 "New-Item -ItemType Directory -Force -Path '%UV_DIR%' | Out-Null;" ^
@@ -54,6 +61,7 @@ pipeline {
           echo Verifying Python installation...
           ".venv\\Scripts\\python.exe" --version
           ".venv\\Scripts\\python.exe" -c "import asyncio; print(asyncio.Queue[str])"
+          if errorlevel 1 exit /b 1
 
           endlocal
         '''
@@ -68,13 +76,13 @@ pipeline {
               url          : 'wss://app2-7mtf3weu.livekit.cloud',
               credentialId : 'livekit-app3'
             ],
-            Orion: [
-              url          : 'wss://orion-qx3o4v38.livekit.cloud',
-              credentialId : 'livekit-orion'
-            ],
             App2: [
               url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
               credentialId : 'livekit-app2'
+            ],
+            Orion: [
+              url          : 'wss://orion-qx3o4v38.livekit.cloud',
+              credentialId : 'livekit-orion'
             ]
           ]
 
@@ -101,12 +109,21 @@ pipeline {
             credentialsId: env.LIVEKIT_CREDENTIAL_ID,
             usernameVariable: 'API_KEY',
             passwordVariable: 'API_SECRET'
+          ),
+          string(
+            credentialsId: 'azure-openai-api-key',
+            variable: 'AZURE_OPENAI_API_KEY'
           )
         ]) {
           bat '''
             @echo off
 
             if not exist "reports" mkdir "reports"
+
+            echo Running tests for environment: %APP_ENV%
+            echo Azure OpenAI endpoint: %AZURE_OPENAI_ENDPOINT%
+            echo Azure OpenAI deployment: %AZURE_OPENAI_DEPLOYMENT%
+            echo Azure OpenAI API version: %OPENAI_API_VERSION%
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^

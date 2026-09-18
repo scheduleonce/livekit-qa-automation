@@ -2,68 +2,118 @@ pipeline {
   agent { label 'so-app2-win-es2' }
 
   parameters {
-    choice(name: 'APP_ENV', choices: ['App3', 'App2', 'Orion'], description: 'Target environment')
+    choice(
+      name: 'APP_ENV',
+      choices: ['App3', 'App2', 'Orion'],
+      description: 'Target environment'
+    )
   }
 
   stages {
-    stage('Install') {
+    stage('Install Python and Dependencies') {
       steps {
-        bat 'py -3.13 --version'
-        bat 'py -3.13 -c "import asyncio; print(asyncio.Queue[str])"'
-        bat 'if exist .venv rmdir /s /q .venv'
-        bat 'py -3.13 -m venv .venv'
-        bat '.venv\\Scripts\\python --version'
-        bat '.venv\\Scripts\\python -m pip install --upgrade pip'
-        bat '.venv\\Scripts\\pip install -r requirements.txt'
+        bat '''
+          @echo off
+          setlocal
+
+          set "TOOLS_DIR=%WORKSPACE%\\.job-tools"
+          set "UV_DIR=%WORKSPACE%\\.job-tools\\uv"
+          set "UV_PYTHON_INSTALL_DIR=%WORKSPACE%\\.job-tools\\python"
+          set "UV_CACHE_DIR=%WORKSPACE%\\.job-tools\\uv-cache"
+
+          if not exist "%UV_DIR%\\uv.exe" (
+              echo Downloading uv...
+              powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+                "$ProgressPreference='SilentlyContinue';" ^
+                "New-Item -ItemType Directory -Force -Path '%UV_DIR%' | Out-Null;" ^
+                "Invoke-WebRequest -Uri 'https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip' -OutFile '%TEMP%\\uv.zip';" ^
+                "Expand-Archive -Path '%TEMP%\\uv.zip' -DestinationPath '%UV_DIR%' -Force"
+
+              if errorlevel 1 exit /b 1
+          )
+
+          echo Installing job-local Python 3.13...
+          "%UV_DIR%\\uv.exe" python install 3.13
+          if errorlevel 1 exit /b 1
+
+          if exist ".venv" (
+              echo Removing existing virtual environment...
+              rmdir /s /q ".venv"
+          )
+
+          echo Creating Python 3.13 virtual environment...
+          "%UV_DIR%\\uv.exe" venv --python 3.13 ".venv"
+          if errorlevel 1 exit /b 1
+
+          echo Installing Python dependencies...
+          "%UV_DIR%\\uv.exe" pip install ^
+            --python ".venv\\Scripts\\python.exe" ^
+            -r requirements.txt
+          if errorlevel 1 exit /b 1
+
+          echo Verifying Python installation...
+          ".venv\\Scripts\\python.exe" --version
+          ".venv\\Scripts\\python.exe" -c "import asyncio; print(asyncio.Queue[str])"
+
+          endlocal
+        '''
       }
     }
+
     stage('Resolve LiveKit Configuration') {
-            steps {
-                script {
-                    def liveKitConfigs = [
-                        App3: [
-                            url          : 'wss://app2-7mtf3weu.livekit.cloud',
-                            credentialId : 'livekit-app3'
-                        ],
-                        Orion: [
-                            url          : 'wss://orion-qx3o4v38.livekit.cloud',
-                            credentialId : 'livekit-orion'
-                        ],
-                        App2: [
-                            url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
-                            credentialId : 'livekit-app2'
-                        ],
-                        Prod: [
-                            url          : 'wss://prod-1825qoiq.livekit.cloud',
-                            credentialId : 'livekit-prod'
-                        ]
-                    ]
+      steps {
+        script {
+          def liveKitConfigs = [
+            App3: [
+              url          : 'wss://app2-7mtf3weu.livekit.cloud',
+              credentialId : 'livekit-app3'
+            ],
+            Orion: [
+              url          : 'wss://orion-qx3o4v38.livekit.cloud',
+              credentialId : 'livekit-orion'
+            ],
+            App2: [
+              url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
+              credentialId : 'livekit-app2'
+            ]
+          ]
 
-                    def selectedConfig = liveKitConfigs[params.APP_ENV]
+          def selectedConfig = liveKitConfigs[params.APP_ENV]
 
-                    if (!selectedConfig) {
-                      error("Unsupported environment: ${params.APP_ENV}")
-                    }
+          if (!selectedConfig) {
+            error("Unsupported environment: ${params.APP_ENV}")
+          }
 
-                    env.APP_ENV = params.APP_ENV
-                    env.LIVEKIT_URL = selectedConfig.url
-                    env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
+          env.APP_ENV = params.APP_ENV
+          env.LIVEKIT_URL = selectedConfig.url
+          env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
 
-                    echo "Selected environment: ${params.APP_ENV}"
-                    echo "LiveKit URL: ${env.LIVEKIT_URL}"
-                }
-            }
+          echo "Selected environment: ${env.APP_ENV}"
+          echo "LiveKit URL: ${env.LIVEKIT_URL}"
         }
-    stage('Run QA tests') {
+      }
+    }
+
+    stage('Run QA Tests') {
       steps {
         withCredentials([
           usernamePassword(
-                        credentialsId: env.LIVEKIT_CREDENTIAL_ID,
-                  usernameVariable: 'API_KEY',
-                  passwordVariable: 'API_SECRET'
-                    )
+            credentialsId: env.LIVEKIT_CREDENTIAL_ID,
+            usernameVariable: 'API_KEY',
+            passwordVariable: 'API_SECRET'
+          )
         ]) {
-          bat '.venv\\Scripts\\pytest tests -vv -s --html=reports\\qa_report.html --junitxml=reports\\junit.xml'
+          bat '''
+            @echo off
+
+            if not exist "reports" mkdir "reports"
+
+            ".venv\\Scripts\\python.exe" -m pytest tests ^
+              -vv ^
+              -s ^
+              --html="reports\\qa_report.html" ^
+              --junitxml="reports\\junit.xml"
+          '''
         }
       }
     }
@@ -71,7 +121,11 @@ pipeline {
 
   post {
     always {
-      junit 'reports/junit.xml'
+      junit(
+        testResults: 'reports/junit.xml',
+        allowEmptyResults: true
+      )
+
       publishHTML(target: [
         allowMissing: true,
         alwaysLinkToLastBuild: true,
@@ -80,7 +134,11 @@ pipeline {
         reportFiles: 'qa_report.html',
         reportName: 'QA HTML Report'
       ])
-      archiveArtifacts artifacts: 'reports/**,transcripts/**', allowEmptyArchive: true
+
+      archiveArtifacts(
+        artifacts: 'reports/**,transcripts/**',
+        allowEmptyArchive: true
+      )
     }
   }
 }

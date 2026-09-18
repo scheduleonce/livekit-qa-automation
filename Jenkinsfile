@@ -8,7 +8,11 @@ pipeline {
   stages {
     stage('Install') {
       steps {
-        bat 'py -3 -m venv .venv'
+        bat 'py -3.13 --version'
+        bat 'py -3.13 -c "import asyncio; print(asyncio.Queue[str])"'
+        bat 'if exist .venv rmdir /s /q .venv'
+        bat 'py -3.13 -m venv .venv'
+        bat '.venv\\Scripts\\python --version'
         bat '.venv\\Scripts\\python -m pip install --upgrade pip'
         bat '.venv\\Scripts\\pip install -r requirements.txt'
       }
@@ -35,16 +39,17 @@ pipeline {
                         ]
                     ]
 
-                    def selectedConfig = liveKitConfigs[params.ENVIRONMENT]
+                    def selectedConfig = liveKitConfigs[params.APP_ENV]
 
                     if (!selectedConfig) {
-                        error("Unsupported environment: ${params.ENVIRONMENT}")
+                      error("Unsupported environment: ${params.APP_ENV}")
                     }
 
+                    env.APP_ENV = params.APP_ENV
                     env.LIVEKIT_URL = selectedConfig.url
                     env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
 
-                    echo "Selected environment: ${params.ENVIRONMENT}"
+                    echo "Selected environment: ${params.APP_ENV}"
                     echo "LiveKit URL: ${env.LIVEKIT_URL}"
                 }
             }
@@ -54,8 +59,8 @@ pipeline {
         withCredentials([
           usernamePassword(
                         credentialsId: env.LIVEKIT_CREDENTIAL_ID,
-                        usernameVariable: 'LIVEKIT_API_KEY',
-                        passwordVariable: 'LIVEKIT_API_SECRET'
+                  usernameVariable: 'API_KEY',
+                  passwordVariable: 'API_SECRET'
                     )
         ]) {
           bat '.venv\\Scripts\\pytest tests -vv -s --html=reports\\qa_report.html --junitxml=reports\\junit.xml'

@@ -28,6 +28,10 @@ pipeline {
                         App2: [
                             url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
                             credentialId : 'livekit-app2'
+                        ],
+                        Prod: [
+                            url          : 'wss://prod-1825qoiq.livekit.cloud',
+                            credentialId : 'livekit-prod'
                         ]
                     ]
 

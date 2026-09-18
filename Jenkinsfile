@@ -11,7 +11,6 @@ pipeline {
 
   environment {
     CI = 'true'
-    CONVERSATION_AI = 'openai'
   }
 
   stages {
@@ -98,12 +97,20 @@ pipeline {
             )
 
             echo AI configuration loaded from VOICE_TEST_ENV
-            echo.
-            echo Available AI-related variable names:
-
-            ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; values=dotenv_values('.env'); names=sorted(k for k in values if 'OPENAI' in k.upper() or 'GPT' in k.upper() or 'AI_KEY' in k.upper()); print('\\n'.join(names) if names else 'NO_AI_RELATED_VARIABLES_FOUND')"
           '''
         }
+      }
+    }
+
+    stage('Validate AI Configuration') {
+      steps {
+        bat '''
+          @echo off
+
+          ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT','AZURE_OPENAI_TTS_DEPLOYMENT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure variables: ' + ', '.join(missing); print('Azure OpenAI and TTS configuration is available')"
+
+          if errorlevel 1 exit /b 1
+        '''
       }
     }
 
@@ -137,7 +144,6 @@ pipeline {
 
           echo "Selected environment: ${env.APP_ENV}"
           echo "LiveKit URL: ${env.LIVEKIT_URL}"
-          echo "Conversation AI provider: ${env.CONVERSATION_AI}"
         }
       }
     }
@@ -161,8 +167,7 @@ pipeline {
 
             if not exist "reports" mkdir "reports"
 
-            echo Running tests for environment: %APP_ENV%
-            echo Conversation AI provider: %CONVERSATION_AI%
+            echo Running LiveKit tests for environment: %APP_ENV%
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^

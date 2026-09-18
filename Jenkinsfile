@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'YOUR_AGENT_LABEL' }
+  agent { label 'so-app2-win-es2' }
 
   parameters {
     choice(name: 'APP_ENV', choices: ['App3', 'App2', 'Orion'], description: 'Target environment')

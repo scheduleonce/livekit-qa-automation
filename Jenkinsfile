@@ -10,9 +10,8 @@ pipeline {
   }
 
   environment {
-    AZURE_OPENAI_ENDPOINT = 'https://hurricanesgpt4o.openai.azure.com/'
-    OPENAI_API_VERSION = '2025-04-14'
-    AZURE_OPENAI_DEPLOYMENT = 'gpt-4.1-mini'
+    CI = 'true'
+    CONVERSATION_AI = 'openai'
   }
 
   stages {
@@ -70,6 +69,34 @@ pipeline {
       }
     }
 
+    stage('Setup AI Configuration') {
+      steps {
+        withCredentials([
+          file(
+            credentialsId: 'VOICE_TEST_ENV',
+            variable: 'VOICE_ENV_FILE'
+          )
+        ]) {
+          bat '''
+            @echo off
+
+            if not exist "%VOICE_ENV_FILE%" (
+                echo ERROR: VOICE_TEST_ENV credential file was not found
+                exit /b 1
+            )
+
+            copy /Y "%VOICE_ENV_FILE%" ".env" >nul
+            if errorlevel 1 (
+                echo ERROR: Failed to create .env file
+                exit /b 1
+            )
+
+            echo AI configuration loaded from VOICE_TEST_ENV
+          '''
+        }
+      }
+    }
+
     stage('Resolve LiveKit Configuration') {
       steps {
         script {
@@ -100,39 +127,8 @@ pipeline {
 
           echo "Selected environment: ${env.APP_ENV}"
           echo "LiveKit URL: ${env.LIVEKIT_URL}"
+          echo "Conversation AI provider: ${env.CONVERSATION_AI}"
         }
-      }
-    }
-
-    stage('Check Azure Network Access') {
-      steps {
-        bat '''
-          @echo off
-
-          echo ==================================================
-          echo Jenkins outbound public IP
-          echo ==================================================
-
-          powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-            "$ProgressPreference='SilentlyContinue';" ^
-            "$publicIp = Invoke-RestMethod -Uri 'https://api.ipify.org' -TimeoutSec 30;" ^
-            "Write-Host ('Public IP: ' + $publicIp)"
-
-          if errorlevel 1 (
-              echo WARNING: Unable to determine Jenkins outbound IP
-          )
-
-          echo.
-          echo ==================================================
-          echo Azure OpenAI DNS resolution
-          echo ==================================================
-
-          nslookup hurricanesgpt4o.openai.azure.com
-
-          if errorlevel 1 (
-              echo WARNING: Azure OpenAI DNS lookup failed
-          )
-        '''
       }
     }
 
@@ -143,21 +139,20 @@ pipeline {
             credentialsId: env.LIVEKIT_CREDENTIAL_ID,
             usernameVariable: 'API_KEY',
             passwordVariable: 'API_SECRET'
-          ),
-          string(
-            credentialsId: 'azure-openai-api-key',
-            variable: 'AZURE_OPENAI_API_KEY'
           )
         ]) {
           bat '''
             @echo off
 
+            if not exist ".env" (
+                echo ERROR: AI configuration file is missing
+                exit /b 1
+            )
+
             if not exist "reports" mkdir "reports"
 
             echo Running tests for environment: %APP_ENV%
-            echo Azure OpenAI endpoint: %AZURE_OPENAI_ENDPOINT%
-            echo Azure OpenAI deployment: %AZURE_OPENAI_DEPLOYMENT%
-            echo Azure OpenAI API version: %OPENAI_API_VERSION%
+            echo Conversation AI provider: %CONVERSATION_AI%
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^
@@ -172,6 +167,15 @@ pipeline {
 
   post {
     always {
+      bat '''
+        @echo off
+
+        if exist ".env" (
+            del /F /Q ".env"
+            echo Temporary AI configuration file removed
+        )
+      '''
+
       junit(
         testResults: 'reports/junit.xml',
         allowEmptyResults: true

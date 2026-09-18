@@ -86,12 +86,22 @@ pipeline {
             )
 
             copy /Y "%VOICE_ENV_FILE%" ".env" >nul
+
             if errorlevel 1 (
                 echo ERROR: Failed to create .env file
                 exit /b 1
             )
 
+            if not exist ".env" (
+                echo ERROR: .env file does not exist after copy
+                exit /b 1
+            )
+
             echo AI configuration loaded from VOICE_TEST_ENV
+            echo.
+            echo Available AI-related variable names:
+
+            ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; values=dotenv_values('.env'); names=sorted(k for k in values if 'OPENAI' in k.upper() or 'GPT' in k.upper() or 'AI_KEY' in k.upper()); print('\\n'.join(names) if names else 'NO_AI_RELATED_VARIABLES_FOUND')"
           '''
         }
       }

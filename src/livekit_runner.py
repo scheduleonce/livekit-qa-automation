@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import time
 import uuid
 from pathlib import Path
@@ -17,11 +16,12 @@ from .tts import generate_wav_from_text, play_audio_to_agent
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 REPLY_AUDIO_DIR = PROJECT_ROOT / "replyAudioFiles"
 REPLY_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-config_json_path = PROJECT_ROOT / "data" / "livekit_bot_config.json"
-default_happy_paths_yaml = PROJECT_ROOT / "data" / "happy_paths.yaml"
+CONFIG_JSON_PATH = PROJECT_ROOT / "data" / "livekit_bot_config.json"
+DEFAULT_HAPPY_PATHS_YAML = PROJECT_ROOT / "data" / "happy_paths.yaml"
 
 
 async def run_livekit_test(
@@ -30,16 +30,21 @@ async def run_livekit_test(
     """Run one LiveKit test scenario and return its conversation history."""
 
     source_yaml = scenario_data.get("_source_file")
-    yaml_path = Path(source_yaml) if source_yaml else default_happy_paths_yaml
+    yaml_path = (
+        Path(source_yaml)
+        if source_yaml
+        else DEFAULT_HAPPY_PATHS_YAML
+    )
 
     try:
         target_env = get_target_environment()
 
-        LIVEKIT_URL, API_KEY, API_SECRET, BOT_ID = resolve_credentials(
+        livekit_url, api_key, api_secret, bot_id = resolve_credentials(
             target_env,
-            config_json_path,
+            CONFIG_JSON_PATH,
             yaml_path,
         )
+
     except Exception as exc:
         print(
             f"Configuration error for scenario "
@@ -47,7 +52,7 @@ async def run_livekit_test(
         )
         raise
 
-    print(f"CONFIG: ENV={target_env}, selected BOT_ID={BOT_ID}")
+    print(f"CONFIG: ENV={target_env}, selected BOT_ID={bot_id}")
 
     room = rtc.Room()
     caller = SimulatedCaller(scenario_data)
@@ -57,7 +62,7 @@ async def run_livekit_test(
 
     active_tasks: set[asyncio.Task] = set()
 
-    # Turn lifecycle flags.
+    # Conversation lifecycle flags.
     turn_in_progress = False
     shutting_down = False
     room_connected = False
@@ -69,11 +74,12 @@ async def run_livekit_test(
 
     async def handle_turn(agent_text: str):
         """
-        Process exactly one agent turn.
+        Handle one completed agent transcription.
 
-        Only one instance of this function is allowed to run at a time.
-        The event handler sets turn_in_progress before creating this task.
+        Only one turn is processed at a time to prevent multiple
+        LiveKit audio tracks from being published simultaneously.
         """
+
         nonlocal current_agent_latency
         nonlocal last_caller_speech_end
         nonlocal first_word_received
@@ -109,11 +115,15 @@ async def run_livekit_test(
             }
 
             if current_agent_latency is not None:
-                current_agent_message["latency_sec"] = current_agent_latency
+                current_agent_message["latency_sec"] = (
+                    current_agent_latency
+                )
 
-            caller.conversation_history.append(current_agent_message)
+            caller.conversation_history.append(
+                current_agent_message
+            )
+
             current_agent_latency = None
-
             normalized_text = agent_text.lower()
 
             if any(
@@ -153,7 +163,8 @@ async def run_livekit_test(
 
                 print(f"DEBUG: Generated WAV file: {wav_file}")
 
-                # Check again because TTS generation can take several seconds.
+                # TTS generation can take several seconds.
+                # Confirm the room is still available before playback.
                 if shutting_down or not room_connected:
                     print(
                         "DEBUG: Room closed while generating audio; "
@@ -172,7 +183,8 @@ async def run_livekit_test(
                 print("DEBUG: Played audio to agent")
 
             if should_end_call:
-                # Signal completion only after the final reply finishes playing.
+                # Do not finish the test until the final reply has
+                # completely finished playing.
                 print("DEBUG: Test finished signal set")
                 test_finished.set()
 
@@ -182,8 +194,7 @@ async def run_livekit_test(
             import traceback
             traceback.print_exc()
 
-            # Prevent a scenario containing [END_CALL] from waiting for the
-            # entire test timeout if its final playback fails.
+            # Avoid waiting for the full timeout when final playback fails.
             if should_end_call:
                 test_finished.set()
 
@@ -191,7 +202,12 @@ async def run_livekit_test(
             if wav_file is not None and wav_file.exists():
                 try:
                     wav_file.unlink()
-                    print(f"DEBUG: Removed temporary WAV file: {wav_file}")
+
+                    print(
+                        "DEBUG: Removed temporary WAV file: "
+                        f"{wav_file}"
+                    )
+
                 except OSError as cleanup_error:
                     print(
                         "WARNING: Could not remove temporary WAV file "
@@ -211,18 +227,19 @@ async def run_livekit_test(
         nonlocal current_agent_latency
         nonlocal turn_in_progress
 
-        # Ignore any local-participant transcription.
+        # Ignore transcriptions generated by the local QA participant.
         if (
             participant
             and room.local_participant
-            and participant.identity == room.local_participant.identity
+            and participant.identity
+            == room.local_participant.identity
         ):
             return
 
         if shutting_down:
             print(
-                "DEBUG: Ignoring transcription because test "
-                "is shutting down"
+                "DEBUG: Ignoring transcription because "
+                "the test is shutting down"
             )
             return
 
@@ -232,9 +249,12 @@ async def run_livekit_test(
             if not text:
                 continue
 
-            # Measure time to the first agent transcription fragment.
+            # Track the first transcription fragment received from the agent.
             if not first_word_received:
-                latency_sec = time.time() - last_caller_speech_end
+                latency_sec = (
+                    time.time() - last_caller_speech_end
+                )
+
                 print(
                     "[Latency] Agent started speaking in: "
                     f"{latency_sec:.2f}s"
@@ -256,21 +276,22 @@ async def run_livekit_test(
 
             first_transcription_received.set()
 
-            # The previous implementation created a new task for every final
-            # segment. This caused multiple tracks to publish concurrently.
+            # Prevent overlapping conversation turns.
             if turn_in_progress:
                 print(
-                    "DEBUG: Ignoring final transcription while another "
-                    f"turn is active: {text!r}"
+                    "DEBUG: Ignoring final transcription while "
+                    f"another turn is active: {text!r}"
                 )
                 continue
 
-            # Set this synchronously before creating the task. This closes the
-            # gap in which another transcription event could create a second
-            # task before handle_turn starts running.
+            # Set the flag before creating the task so another event
+            # cannot create a second task during the scheduling gap.
             turn_in_progress = True
 
-            task = asyncio.create_task(handle_turn(text))
+            task = asyncio.create_task(
+                handle_turn(text)
+            )
+
             active_tasks.add(task)
             task.add_done_callback(active_tasks.discard)
 
@@ -286,15 +307,17 @@ async def run_livekit_test(
     metadata = json.dumps(
         {
             "is_preview": True,
-            "bot_external_id": BOT_ID,
+            "bot_external_id": bot_id,
             "scenario_id": scenario_id,
             "iana_timezone": "Asia/Kolkata",
         }
     )
 
     token = (
-        api.AccessToken(API_KEY, API_SECRET)
-        .with_identity(f"QA_Bot_{uuid.uuid4().hex[:4]}")
+        api.AccessToken(api_key, api_secret)
+        .with_identity(
+            f"QA_Bot_{uuid.uuid4().hex[:4]}"
+        )
         .with_metadata(metadata)
         .with_grants(
             api.VideoGrants(
@@ -307,23 +330,28 @@ async def run_livekit_test(
 
     try:
         print(
-            f"DEBUG: Connecting to room at {LIVEKIT_URL} "
+            f"DEBUG: Connecting to room at {livekit_url} "
             f"room={room_name}"
         )
 
-        await room.connect(LIVEKIT_URL, token)
+        await room.connect(livekit_url, token)
         room_connected = True
 
         print("DEBUG: Successfully connected to room")
+
         last_caller_speech_end = time.time()
 
     except Exception as exc:
-        print(f"ERROR: Failed to connect to LiveKit room: {exc}")
+        print(
+            f"ERROR: Failed to connect to LiveKit room: {exc}"
+        )
 
         import traceback
         traceback.print_exc()
+
         raise
 
+    # Wait for the initial welcome message.
     try:
         print(
             "DEBUG: Waiting for agent welcome transcription "
@@ -346,6 +374,7 @@ async def run_livekit_test(
             "60 seconds. Continuing to wait."
         )
 
+    # Wait for [END_CALL] or the overall test timeout.
     try:
         await asyncio.wait_for(
             test_finished.wait(),
@@ -356,12 +385,13 @@ async def run_livekit_test(
         print("Test timed out after 600 seconds.")
 
     finally:
-        # Stop the event callback from scheduling any new turn tasks.
+        # Prevent transcription events from creating new tasks.
         shutting_down = True
 
-        # Take snapshots repeatedly in case a task was registered immediately
-        # before shutting_down became true.
-        while active_tasks:
+        # Capture the current tasks once. A while-loop is intentionally
+        # avoided because completed tasks can remain in the set until
+        # their done callbacks receive another event-loop cycle.
+        if active_tasks:
             pending_tasks = list(active_tasks)
 
             print(
@@ -374,12 +404,24 @@ async def run_livekit_test(
                 return_exceptions=True,
             )
 
+            # Explicitly remove them instead of depending only on
+            # the asynchronous done callback.
+            active_tasks.difference_update(pending_tasks)
+
         if room_connected:
             try:
                 room_connected = False
+
                 await room.disconnect()
-                print("DEBUG: Room disconnected successfully")
+
+                print(
+                    "DEBUG: Room disconnected successfully"
+                )
+
             except Exception as exc:
-                print(f"ERROR: Failed to disconnect room: {exc}")
+                print(
+                    "ERROR: Failed to disconnect room: "
+                    f"{exc}"
+                )
 
     return caller.conversation_history, caller

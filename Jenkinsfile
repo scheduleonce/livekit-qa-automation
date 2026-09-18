@@ -13,12 +13,46 @@ pipeline {
         bat '.venv\\Scripts\\pip install -r requirements.txt'
       }
     }
+    stage('Resolve LiveKit Configuration') {
+            steps {
+                script {
+                    def liveKitConfigs = [
+                        App3: [
+                            url          : 'wss://app2-7mtf3weu.livekit.cloud',
+                            credentialId : 'livekit-app3'
+                        ],
+                        Orion: [
+                            url          : 'wss://orion-qx3o4v38.livekit.cloud',
+                            credentialId : 'livekit-orion'
+                        ],
+                        App2: [
+                            url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
+                            credentialId : 'livekit-app2'
+                        ]
+                    ]
+
+                    def selectedConfig = liveKitConfigs[params.ENVIRONMENT]
+
+                    if (!selectedConfig) {
+                        error("Unsupported environment: ${params.ENVIRONMENT}")
+                    }
+
+                    env.LIVEKIT_URL = selectedConfig.url
+                    env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
+
+                    echo "Selected environment: ${params.ENVIRONMENT}"
+                    echo "LiveKit URL: ${env.LIVEKIT_URL}"
+                }
+            }
+        }
     stage('Run QA tests') {
       steps {
         withCredentials([
-          string(credentialsId: 'livekit-url', variable: 'LIVEKIT_URL'),
-          string(credentialsId: 'livekit-api-key', variable: 'API_KEY'),
-          string(credentialsId: 'livekit-api-secret', variable: 'API_SECRET')
+          usernamePassword(
+                        credentialsId: env.LIVEKIT_CREDENTIAL_ID,
+                        usernameVariable: 'LIVEKIT_API_KEY',
+                        passwordVariable: 'LIVEKIT_API_SECRET'
+                    )
         ]) {
           bat '.venv\\Scripts\\pytest tests -vv -s --html=reports\\qa_report.html --junitxml=reports\\junit.xml'
         }

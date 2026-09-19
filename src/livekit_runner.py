@@ -59,6 +59,7 @@ async def run_livekit_test(
 
     test_finished = asyncio.Event()
     first_transcription_received = asyncio.Event()
+    turn_error = None
 
     active_tasks: set[asyncio.Task] = set()
 
@@ -84,6 +85,7 @@ async def run_livekit_test(
         nonlocal last_caller_speech_end
         nonlocal first_word_received
         nonlocal turn_in_progress
+        nonlocal turn_error
 
         wav_file: Path | None = None
         should_end_call = False
@@ -189,14 +191,14 @@ async def run_livekit_test(
                 test_finished.set()
 
         except Exception as exc:
+            turn_error = exc
             print(f"ERROR in handle_turn: {exc}")
 
             import traceback
             traceback.print_exc()
 
-            # Avoid waiting for the full timeout when final playback fails.
-            if should_end_call:
-                test_finished.set()
+            # Stop promptly so pytest can finish and write its HTML report.
+            test_finished.set()
 
         finally:
             if wav_file is not None and wav_file.exists():
@@ -423,5 +425,11 @@ async def run_livekit_test(
                     "ERROR: Failed to disconnect room: "
                     f"{exc}"
                 )
+
+    if turn_error is not None:
+        raise RuntimeError(
+            "LiveKit conversation stopped because a conversation turn failed. "
+            "Check the TTS/audio configuration and the preceding traceback."
+        ) from turn_error
 
     return caller.conversation_history, caller

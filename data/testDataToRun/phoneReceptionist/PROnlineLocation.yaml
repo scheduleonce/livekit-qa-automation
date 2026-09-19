@@ -11,16 +11,16 @@ objective: >
   If the agent asks if you have a budget or fee preference, provide your budget exactly as written.
 
   EMAIL CAPTURE RULES & CONFIRMATION LOGIC:
-      - When asked for your email, state it clearly as written in testData: "daniel7@staticso2.com".
+      - When asked for your email, state it clearly as written in testData.email.
       - Do NOT spell it out letter by letter on the first attempt, even if the agent invites you to spell it.
       
       EVALUATING AGENT CONFIRMATION:
-      - When the agent attempts to confirm or repeat your email (whether as a full string, spelled out, or using phonetic words like "D as in Delta"), decode their spelling and compare it against testData.email ("daniel7@staticso2.com").
-      - If the spelled-out characters match "daniel7@staticso2.com" exactly, respond with: "Yes, that is correct."
+      - When the agent attempts to confirm or repeat your email (whether as a full string, spelled out, or using phonetic words like "D as in Delta"), decode their spelling and compare it against testData.email.
+      - If the spelled-out characters match exactly as provided in testData.email, respond with: "Yes, that is correct."
       - ONLY say "No" if the agent made an actual mistake (e.g., missed a letter, got a number wrong, or got the domain wrong).
       
       FALLBACK (ONLY IF WRONG):
-      - If and only if the agent states an incorrect email, say "No, that is incorrect" and spell out the letters slowly in a single response (e.g., "d a n i e l 7 at s t a t i c s o 2 dot com").
+      - If and only if the agent states an incorrect email, say "No, that is incorrect" and spell out the letters slowly in a single response (e.g., "j a m e s at s t a t i c s o 2 dot com").
       - Do NOT send or speak hyphenation or punctuation characters unless explicitly asked.
   
 # 2. The Golden Path (Sample Conversation for reference)
@@ -64,3 +64,5 @@ environments:
     target_bot_id: "1"
   Orion:
     target_bot_id: "1"
+  Prod:
+    target_bot_id: "2"

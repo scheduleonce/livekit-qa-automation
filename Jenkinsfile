@@ -182,8 +182,8 @@ pipeline {
                 mkdir "reports"
             )
 
-            del /F /Q "reports\qa_report.html" 2>nul
-            del /F /Q "reports\junit.xml" 2>nul
+            del /F /Q "reports/qa_report.html" 2>nul
+            del /F /Q "reports/junit.xml" 2>nul
 
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
@@ -191,7 +191,7 @@ pipeline {
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^
               -s ^
-              --html="reports\qa_report.html" ^
+              --html="reports/qa_report.html" ^
               --self-contained-html ^
               --junitxml="reports\\junit.xml"
           '''

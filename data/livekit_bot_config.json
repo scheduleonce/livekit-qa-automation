@@ -37,5 +37,17 @@
       {"id": "4", "value": "AIBOT-9619F87194" },
       { "id": "5", "value": "AIBOT-94CC7965EF" }
     ]
+  },
+  "Prod": {
+    "LIVEKIT_URL": "LIVEKIT_URL",
+    "API_KEY": "API_KEY",
+    "API_SECRET": "API_SECRET",
+    "BOT_ID": [
+      { "id": "1", "value": "AIBOT-FFD91A13C8" },
+      { "id": "2", "value": "AIBOT-A2EA868BA4" },
+      { "id": "3", "value": "AIBOT-F15A811503" },
+      {"id": "4", "value": "AIBOT-9619F87194" },
+      { "id": "5", "value": "AIBOT-94CC7965EF" }
+    ]
   }
 }

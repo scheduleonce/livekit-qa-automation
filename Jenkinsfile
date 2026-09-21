@@ -4,7 +4,7 @@ pipeline {
   parameters {
     choice(
       name: 'APP_ENV',
-      choices: ['App3', 'App2', 'Orion'],
+      choices: ['App3', 'App2', 'Orion', 'Prod'],
       description: 'Target environment'
     )
   }
@@ -182,13 +182,17 @@ pipeline {
                 mkdir "reports"
             )
 
+            del /F /Q "reports\qa_report.html" 2>nul
+            del /F /Q "reports\junit.xml" 2>nul
+
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^
               -s ^
-              --html="reports\\qa_report.html" ^
+              --html="reports\qa_report.html" ^
+              --self-contained-html ^
               --junitxml="reports\\junit.xml"
           '''
         }

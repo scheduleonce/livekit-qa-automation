@@ -182,8 +182,8 @@ pipeline {
                 mkdir "reports"
             )
 
-            del /F /Q "reports/qa_report.html" 2>nul
-            del /F /Q "reports/junit.xml" 2>nul
+            del /F /Q "reports\\qa_report.html" 2>nul
+            del /F /Q "reports\\junit.xml" 2>nul
 
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
@@ -191,9 +191,9 @@ pipeline {
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^
               -s ^
-              --html="reports/qa_report.html" ^
+              --html=reports/qa_report.html ^
               --self-contained-html ^
-              --junitxml="reports\\junit.xml"
+              --junitxml=reports/junit.xml
           '''
         }
       }
@@ -213,16 +213,17 @@ pipeline {
 
       junit(
         testResults: 'reports/junit.xml',
-        allowEmptyResults: true
+        allowEmptyResults: false
       )
 
       publishHTML(target: [
-        allowMissing: true,
+        allowMissing: false,
         alwaysLinkToLastBuild: true,
         keepAll: true,
         reportDir: 'reports',
         reportFiles: 'qa_report.html',
-        reportName: 'QA HTML Report'
+        reportName: 'QA HTML Report',
+        includes: '**/*'
       ])
 
       archiveArtifacts(

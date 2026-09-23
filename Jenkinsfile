@@ -190,9 +190,8 @@ pipeline {
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
               -vv ^
-              -s ^
-              --html=reports/qa_report.html ^
-              --self-contained-html ^
+              --capture=tee-sys ^
+              -o junit_logging=all ^
               --junitxml=reports/junit.xml
           '''
         }
@@ -211,20 +210,36 @@ pipeline {
         )
       '''
 
-      junit(
-        testResults: 'reports/junit.xml',
-        allowEmptyResults: false
-      )
+      script {
+        if (fileExists('reports/junit.xml')) {
+          bat '''
+            @echo off
+            ".venv\\Scripts\\python.exe" scripts\\generate_static_report.py ^
+              reports\\junit.xml ^
+              reports\\qa_report.html ^
+              --environment "%APP_ENV%"
+            if errorlevel 1 exit /b 1
+          '''
 
-      publishHTML(target: [
-        allowMissing: false,
-        alwaysLinkToLastBuild: true,
-        keepAll: true,
-        reportDir: 'reports',
-        reportFiles: 'qa_report.html',
-        reportName: 'QA HTML Report',
-        includes: '**/*'
-      ])
+          junit(
+            testResults: 'reports/junit.xml',
+            allowEmptyResults: false,
+            stdioRetention: 'all'
+          )
+
+          publishHTML(target: [
+            allowMissing: false,
+            alwaysLinkToLastBuild: true,
+            keepAll: true,
+            reportDir: 'reports',
+            reportFiles: 'qa_report.html',
+            reportName: 'QA HTML Report',
+            includes: '**/*'
+          ])
+        } else {
+          echo 'No JUnit XML was generated; QA HTML Report cannot be created.'
+        }
+      }
 
       archiveArtifacts(
         artifacts: 'reports/**,transcripts/**',

@@ -1,0 +1,63 @@
+id: TC_BookingHub_CHANGE_BOOKING_CALENDAR_001
+name: Change booking calendar after providing first name
+type: e2e_conversation
+objective: >
+  You want to schedule a successful meeting through the booking hub. When the
+  receptionist presents the available booking calendars or meeting types,
+  select the first option offered without inventing or volunteering a name.
+  Continue with the booking flow. When the receptionist asks for your name,
+  provide only your first name, Donna. After giving your name, say that you
+  changed your mind and want to schedule a meeting using a different booking
+  calendar or meeting type. Select the second option offered, or any other
+  different option the receptionist presents, without naming a specific doctor
+  or calendar yourself. Continue with that second selection as the final
+  choice and provide the remaining booking details only when asked. Keep your
+  replies short and conversational.
+
+reference_flow: >
+  Agent: How can I help? -> Caller: I would like to schedule a meeting.
+  Agent: presents booking calendar or meeting type options -> Caller: selects
+  the first option offered. -> Agent: asks for the caller's name -> Caller:
+  Donna. -> Caller: I changed my mind; I would like to use a different option
+  instead. -> Agent: presents or confirms another option -> Caller: selects the
+  different option. -> Agent: asks for the remaining booking details -> Caller:
+  provides the requested details -> Agent: successfully schedules and confirms
+  the meeting using the second selection.
+
+testData:
+  name: Donna Jackson
+  email: Donna123@staticso2.com
+  city: Bangalore
+  phone_number: 8887635621
+  phone_call_number: 7780043170
+  preferred_time: Next week
+  company_name: Vedanta
+  budget: thirty thousand dollars
+
+expectedOutcomes:
+  - id: llm_judge_change_booking_calendar
+    description: >
+      Judge the complete conversation and fail it if any required sequence is
+      missing. The caller must first select the first booking calendar or
+      meeting type offered by the receptionist. The caller must then provide
+      the first name Donna when asked. Only after providing the name, the caller
+      must change their mind and select a different booking calendar or meeting
+      type offered by the receptionist. The caller must not be required to know
+      or state a doctor name, calendar name, or meeting label in advance. The
+      agent must retain the caller's context, accept the change, use the second
+      selection as the final choice, and successfully schedule and confirm the
+      meeting. The agent must capture the requested booking details accurately
+      and must not hallucinate options, policies, availability, or booking
+      information.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "4"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

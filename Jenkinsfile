@@ -1,10 +1,6 @@
 pipeline {
   agent { label 'so-app2-win-es2' }
 
-  tools {
-    allure 'allure report generation'
-  }
-
   parameters {
     choice(
       name: 'APP_ENV',
@@ -93,7 +89,8 @@ pipeline {
 
           if errorlevel 1 exit /b 1
 
-          echo Installing Allure pytest adapter...
+          rem Keep the library available if tests already import allure.
+          rem The pytest adapter is disabled in the test command below.
           "%UV_DIR%\\uv.exe" pip install ^
             --python ".venv\\Scripts\\python.exe" ^
             allure-pytest
@@ -106,10 +103,6 @@ pipeline {
 
           echo Verifying Edge TTS...
           ".venv\\Scripts\\python.exe" -c "import edge_tts; import imageio_ffmpeg; print('Edge TTS and bundled FFmpeg are available')"
-          if errorlevel 1 exit /b 1
-
-          echo Verifying Allure pytest adapter...
-          ".venv\\Scripts\\python.exe" -c "import allure; import allure_pytest; print('Allure pytest adapter is available')"
           if errorlevel 1 exit /b 1
 
           endlocal
@@ -201,7 +194,11 @@ pipeline {
       }
     }
 
-    stage('Run QA Tests') {
+    stage('Run QA Tests Without Allure') {
+      options {
+        timeout(time: 20, unit: 'MINUTES')
+      }
+
       steps {
         withCredentials([
           usernamePassword(
@@ -225,36 +222,22 @@ pipeline {
 
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
+            echo Allure pytest adapter is DISABLED for this diagnostic run.
+
+            rem Clear environment-supplied pytest options for this run.
+            set "PYTEST_ADDOPTS="
 
             ".venv\\Scripts\\python.exe" -m pytest tests ^
+              -p no:allure_pytest ^
+              -o "addopts=" ^
               -vv ^
               -s ^
               --html=reports/qa_report.html ^
               --self-contained-html ^
-              --junitxml=reports/junit.xml ^
-              --alluredir=reports/allure-results ^
-              --clean-alluredir
+              --junitxml=reports/junit.xml
 
             exit /b %ERRORLEVEL%
           '''
-        }
-      }
-
-      post {
-        always {
-          script {
-            if (fileExists('reports/allure-results')) {
-              allure(
-                commandline: 'allure report generation',
-                includeProperties: false,
-                jdk: '',
-                reportBuildPolicy: 'ALWAYS',
-                results: [[path: 'reports/allure-results']]
-              )
-            } else {
-              echo 'No Allure results generated; skipping publication.'
-            }
-          }
         }
       }
     }

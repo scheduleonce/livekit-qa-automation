@@ -83,58 +83,87 @@ def cleanup_after_test():
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Attach end-to-end transcript (if present) to the pytest-html report extras.
-
-    Looks for transcript files created by `TranscriptExporter.save` using the
-    pattern `transcript_{test_id}_*.txt` in the `transcripts/` directory and
-    embeds the latest one as an HTML `<pre>` block in the report.
-    """
+    """Attach the current test's transcript to HTML and Allure reports."""
     outcome = yield
     rep = outcome.get_result()
-    # only attach for the call phase (test body)
+
     if rep.when != "call":
         return
 
-    # try to get scenario id from parametrized fixture
-    scenario = None
-    try:
-        scenario = item.funcargs.get("scenario")
-    except Exception:
-        scenario = None
-
-    if not scenario:
+    scenario = item.funcargs.get("scenario")
+    if not isinstance(scenario, dict):
         return
 
     test_id = str(scenario.get("id", "unknown"))
-    transcripts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "transcripts")
-    # TranscriptExporter includes the environment between the prefix and test ID.
-    pattern = os.path.join(transcripts_dir, f"transcript_*_{test_id}_*.txt")
-    matches = glob.glob(pattern)
+
+    transcripts_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "transcripts",
+    )
+
+    # Existing exporter filename format:
+    # transcript_<environment>_<test_id>_<timestamp>.txt
+    pattern = os.path.join(
+        transcripts_dir,
+        f"transcript_*_{glob.escape(test_id)}_*.txt",
+    )
+
+    # Only consider files written during this test.
+    # This avoids attaching an old transcript when the current test fails
+    # before generating one.
+    matches = []
+    for path in glob.glob(pattern):
+        try:
+            if os.path.getmtime(path) >= call.start:
+                matches.append(path)
+        except OSError:
+            continue
+
     if not matches:
         return
 
-    # pick the newest transcript file
-    matches.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    transcript_path = matches[0]
+    transcript_path = max(matches, key=os.path.getmtime)
 
     try:
         with open(transcript_path, "r", encoding="utf-8") as fh:
             content = fh.read()
-    except Exception:
-        return
-
-    # attach as HTML extra if pytest-html plugin is available
-    html_plugin = item.config.pluginmanager.getplugin("html")
-    if not html_plugin:
-        return
-
-    try:
-        rep.extras = getattr(rep, "extras", []) or []
-        rep.extras.append(
-            html_plugin.extras.html(
-                f"<h3>Transcript: {escape(test_id)}</h3><pre>{escape(content)}</pre>"
-            )
+    except OSError as exc:
+        warnings.warn(
+            f"Unable to read transcript for {test_id}: {exc}",
+            stacklevel=2,
         )
-    except Exception:
-        # best-effort: ignore errors attaching extras
-        pass
+        return
+
+    # Attach the clean conversation to Allure.
+    # Skip when the Allure adapter is disabled or unavailable.
+    if item.config.pluginmanager.hasplugin("allure_pytest"):
+        try:
+            import allure
+
+            allure.attach(
+                content,
+                name=f"Conversation Transcript: {test_id}",
+                attachment_type=allure.attachment_type.TEXT,
+            )
+        except Exception as exc:
+            warnings.warn(
+                f"Unable to attach Allure transcript for {test_id}: {exc}",
+                stacklevel=2,
+            )
+
+    # Preserve the existing pytest-html transcript.
+    html_plugin = item.config.pluginmanager.getplugin("html")
+    if html_plugin:
+        try:
+            rep.extras = getattr(rep, "extras", []) or []
+            rep.extras.append(
+                html_plugin.extras.html(
+                    f"<h3>Transcript: {escape(test_id)}</h3>"
+                    f"<pre>{escape(content)}</pre>"
+                )
+            )
+        except Exception as exc:
+            warnings.warn(
+                f"Unable to attach HTML transcript for {test_id}: {exc}",
+                stacklevel=2,
+            )

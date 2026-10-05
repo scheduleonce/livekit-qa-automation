@@ -1,6 +1,10 @@
 pipeline {
   agent { label 'so-app2-win-es2' }
 
+  tools {
+    allure 'allure report generation'
+  }
+
   parameters {
     choice(
       name: 'APP_ENV',
@@ -15,6 +19,31 @@ pipeline {
   }
 
   stages {
+    stage('Clean Previous Test Reports') {
+      steps {
+        bat '''
+          @echo off
+
+          if exist "reports\\qa_report.html" (
+              del /F /Q "reports\\qa_report.html"
+              if errorlevel 1 exit /b 1
+          )
+
+          if exist "reports\\junit.xml" (
+              del /F /Q "reports\\junit.xml"
+              if errorlevel 1 exit /b 1
+          )
+
+          if exist "reports\\allure-results" (
+              rmdir /S /Q "reports\\allure-results"
+              if errorlevel 1 exit /b 1
+          )
+
+          exit /b 0
+        '''
+      }
+    }
+
     stage('Install Python and Dependencies') {
       steps {
         bat '''
@@ -30,10 +59,12 @@ pipeline {
               echo Downloading uv...
 
               powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+                "$ErrorActionPreference='Stop';" ^
                 "$ProgressPreference='SilentlyContinue';" ^
-                "New-Item -ItemType Directory -Force -Path '%UV_DIR%' | Out-Null;" ^
-                "Invoke-WebRequest -Uri 'https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip' -OutFile '%TEMP%\\uv.zip';" ^
-                "Expand-Archive -Path '%TEMP%\\uv.zip' -DestinationPath '%UV_DIR%' -Force"
+                "New-Item -ItemType Directory -Force -Path $env:UV_DIR | Out-Null;" ^
+                "$zip=Join-Path $env:TOOLS_DIR 'uv.zip';" ^
+                "Invoke-WebRequest -Uri 'https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip' -OutFile $zip;" ^
+                "Expand-Archive -Path $zip -DestinationPath $env:UV_DIR -Force"
 
               if errorlevel 1 exit /b 1
           )
@@ -44,7 +75,8 @@ pipeline {
 
           if exist ".venv" (
               echo Removing existing virtual environment...
-              rmdir /s /q ".venv"
+              rmdir /S /Q ".venv"
+              if errorlevel 1 exit /b 1
           )
 
           echo Creating Python 3.13 virtual environment...
@@ -61,6 +93,13 @@ pipeline {
 
           if errorlevel 1 exit /b 1
 
+          echo Installing Allure pytest adapter...
+          "%UV_DIR%\\uv.exe" pip install ^
+            --python ".venv\\Scripts\\python.exe" ^
+            allure-pytest
+
+          if errorlevel 1 exit /b 1
+
           echo Verifying Python installation...
           ".venv\\Scripts\\python.exe" --version
           if errorlevel 1 exit /b 1
@@ -69,7 +108,12 @@ pipeline {
           ".venv\\Scripts\\python.exe" -c "import edge_tts; import imageio_ffmpeg; print('Edge TTS and bundled FFmpeg are available')"
           if errorlevel 1 exit /b 1
 
+          echo Verifying Allure pytest adapter...
+          ".venv\\Scripts\\python.exe" -c "import allure; import allure_pytest; print('Allure pytest adapter is available')"
+          if errorlevel 1 exit /b 1
+
           endlocal
+          exit /b 0
         '''
       }
     }
@@ -103,6 +147,7 @@ pipeline {
             )
 
             echo AI configuration loaded from VOICE_TEST_ENV
+            exit /b 0
           '''
         }
       }
@@ -116,6 +161,7 @@ pipeline {
           ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure variables: ' + ', '.join(missing); print('Azure OpenAI conversation configuration is available')"
 
           if errorlevel 1 exit /b 1
+          exit /b 0
         '''
       }
     }
@@ -125,34 +171,28 @@ pipeline {
         script {
           def liveKitConfigs = [
             App3: [
-              url          : 'wss://app2-7mtf3weu.livekit.cloud',
-              credentialId : 'livekit-app3'
+              url: 'wss://app2-7mtf3weu.livekit.cloud',
+              credentialId: 'livekit-app3'
             ],
             App2: [
-              url          : 'wss://qaapp2-xn3x35vf.livekit.cloud',
-              credentialId : 'livekit-app2'
+              url: 'wss://qaapp2-xn3x35vf.livekit.cloud',
+              credentialId: 'livekit-app2'
             ],
             Orion: [
-              url          : 'wss://orion-qx3o4v38.livekit.cloud',
-              credentialId : 'livekit-orion'
+              url: 'wss://orion-qx3o4v38.livekit.cloud',
+              credentialId: 'livekit-orion'
             ]
           ]
 
-          def selectedConfig = (
-            liveKitConfigs[params.APP_ENV]
-          )
+          def selectedConfig = liveKitConfigs[params.APP_ENV]
 
           if (!selectedConfig) {
-            error(
-              "Unsupported environment: ${params.APP_ENV}"
-            )
+            error("Unsupported environment: ${params.APP_ENV}")
           }
 
           env.APP_ENV = params.APP_ENV
           env.LIVEKIT_URL = selectedConfig.url
-          env.LIVEKIT_CREDENTIAL_ID = (
-            selectedConfig.credentialId
-          )
+          env.LIVEKIT_CREDENTIAL_ID = selectedConfig.credentialId
 
           echo "Selected environment: ${env.APP_ENV}"
           echo "LiveKit URL: ${env.LIVEKIT_URL}"
@@ -180,10 +220,8 @@ pipeline {
 
             if not exist "reports" (
                 mkdir "reports"
+                if errorlevel 1 exit /b 1
             )
-
-            del /F /Q "reports\\qa_report.html" 2>nul
-            del /F /Q "reports\\junit.xml" 2>nul
 
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
@@ -193,8 +231,30 @@ pipeline {
               -s ^
               --html=reports/qa_report.html ^
               --self-contained-html ^
-              --junitxml=reports/junit.xml
+              --junitxml=reports/junit.xml ^
+              --alluredir=reports/allure-results ^
+              --clean-alluredir
+
+            exit /b %ERRORLEVEL%
           '''
+        }
+      }
+
+      post {
+        always {
+          script {
+            if (fileExists('reports/allure-results')) {
+              allure(
+                commandline: 'allure report generation',
+                includeProperties: false,
+                jdk: '',
+                reportBuildPolicy: 'ALWAYS',
+                results: [[path: 'reports/allure-results']]
+              )
+            } else {
+              echo 'No Allure results generated; skipping publication.'
+            }
+          }
         }
       }
     }
@@ -207,29 +267,36 @@ pipeline {
 
         if exist ".env" (
             del /F /Q ".env"
+            if errorlevel 1 exit /b 1
             echo Temporary AI configuration file removed
         )
+
+        exit /b 0
       '''
-
-      junit(
-        testResults: 'reports/junit.xml',
-        allowEmptyResults: false
-      )
-
-          publishHTML(target: [
-        allowMissing: false,
-        alwaysLinkToLastBuild: true,
-        keepAll: true,
-        reportDir: 'reports',
-        reportFiles: 'qa_report.html',
-        reportName: 'QA HTML Report',
-        includes: '**/*'
-      ])
 
       archiveArtifacts(
         artifacts: 'reports/**,transcripts/**',
         allowEmptyArchive: true
       )
+
+      catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+        junit(
+          testResults: 'reports/junit.xml',
+          allowEmptyResults: false
+        )
+      }
+
+      catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+        publishHTML(target: [
+          allowMissing: false,
+          alwaysLinkToLastBuild: true,
+          keepAll: true,
+          reportDir: 'reports',
+          reportFiles: 'qa_report.html',
+          reportName: 'QA HTML Report',
+          includes: '**/*'
+        ])
+      }
     }
   }
 }

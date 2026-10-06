@@ -4,6 +4,8 @@ import pytest
 
 from src.config import get_target_environment, resolve_credentials
 
+pytestmark = pytest.mark.config
+
 
 def _write_local_config(tmp_path):
     json_path = tmp_path / "livekit_bot_config.json"

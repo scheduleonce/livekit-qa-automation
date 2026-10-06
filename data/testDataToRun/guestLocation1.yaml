@@ -50,3 +50,5 @@ environments:
     target_bot_id: "5"
   Orion:
     target_bot_id: "2"
+  Prod:
+    target_bot_id: "6"

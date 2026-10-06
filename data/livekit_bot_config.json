@@ -1,8 +1,8 @@
 {
   "Orion": {
     "LIVEKIT_URL": "wss://orion-qx3o4v38.livekit.cloud",
-    "API_KEY": "APIrCs7DkAcCXDk",
-    "API_SECRET": "BVjjPKRSfaByhW77kt1J0JtF1fTh0g0zg5xb09nyNeoA",
+    "API_KEY": "API_KEY",
+    "API_SECRET": "API_SECRET",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-A7E3783E08" },
       { "id": "2", "value": "AIBOT-0198E02F80" },
@@ -12,8 +12,8 @@
   },
   "App3": {
     "LIVEKIT_URL": "wss://app2-7mtf3weu.livekit.cloud",
-    "API_KEY": "API3DAQhvPnHKgq",
-    "API_SECRET": "NLdp1R9yEK2c1UjjCtEQsK2jwnuT4BJJav8FiGMk2WH",
+    "API_KEY": "API_KEY",
+    "API_SECRET": "API_SECRET",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-C35BB7C031" },
       { "id": "2", "value": "AIBOT-6AD8EDED13" },
@@ -28,8 +28,8 @@
   },
   "App2": {
     "LIVEKIT_URL": "wss://qaapp2-xn3x35vf.livekit.cloud",
-    "API_KEY": "APIgjwvNJVdvczj",
-    "API_SECRET": "Aq68MD2cxMlCsuePfaJteZiGkbuR3FCHxzfJ6tg8wcVB",
+    "API_KEY": "API_KEY",
+    "API_SECRET": "API_SECRET",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-0A4BFD3E2D" },
       { "id": "2", "value": "AIBOT-69D8D92446" },
@@ -39,15 +39,16 @@
     ]
   },
   "Prod": {
-    "LIVEKIT_URL": "LIVEKIT_URL",
+    "LIVEKIT_URL": "wss://prod-1825qoiq.livekit.cloud",
     "API_KEY": "API_KEY",
     "API_SECRET": "API_SECRET",
     "BOT_ID": [
       { "id": "1", "value": "AIBOT-FFD91A13C8" },
       { "id": "2", "value": "AIBOT-A2EA868BA4" },
-      { "id": "3", "value": "AIBOT-F15A811503" },
-      {"id": "4", "value": "AIBOT-9619F87194" },
-      { "id": "5", "value": "AIBOT-94CC7965EF" }
+      { "id": "3", "value": "AIBOT-4B41C0649B" },
+      {"id": "4", "value": "AIBOT-BFC80C3C6A" },
+      { "id": "5", "value": "AIBOT-442B6A20FA" },
+      { "id": "6", "value": "AIBOT-D1B46AD7EA" }
     ]
   }
 }

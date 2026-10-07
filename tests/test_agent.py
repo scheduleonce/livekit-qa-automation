@@ -1,5 +1,7 @@
+import json
 import logging
 
+import allure
 import pytest
 from dotenv import load_dotenv
 from src.llm_judge import judge_transcript_file
@@ -12,6 +14,7 @@ load_dotenv()
 
 @pytest.mark.asyncio
 async def test_voice_agent(scenario):
+    allure.dynamic.title(scenario["id"])
 
     Utility.prepare_reply_audio_dir(self=Utility())
     
@@ -25,6 +28,11 @@ async def test_voice_agent(scenario):
         
         # 3. Evaluate results
         result = evaluate_test_run(history, scenario.get("expectedOutcomes", []))
+        allure.attach(
+            json.dumps(result, indent=2, ensure_ascii=False),
+            name="LLM Judge Result",
+            attachment_type=allure.attachment_type.JSON,
+        )
 
         #Use below code for evaluating a specific transcript file with the LLM judge without running the live call
         # result = judge_transcript_file(

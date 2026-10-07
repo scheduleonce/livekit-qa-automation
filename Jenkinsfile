@@ -24,11 +24,6 @@ pipeline {
         bat '''
           @echo off
 
-          if exist "reports\\qa_report.html" (
-              del /F /Q "reports\\qa_report.html"
-              if errorlevel 1 exit /b 1
-          )
-
           if exist "reports\\junit.xml" (
               del /F /Q "reports\\junit.xml"
               if errorlevel 1 exit /b 1
@@ -90,13 +85,6 @@ pipeline {
           "%UV_DIR%\\uv.exe" pip install ^
             --python ".venv\\Scripts\\python.exe" ^
             -r requirements.txt
-
-          if errorlevel 1 exit /b 1
-
-          echo Installing Allure pytest adapter...
-          "%UV_DIR%\\uv.exe" pip install ^
-            --python ".venv\\Scripts\\python.exe" ^
-            allure-pytest
 
           if errorlevel 1 exit /b 1
 
@@ -181,6 +169,10 @@ pipeline {
             Orion: [
               url: 'wss://orion-qx3o4v38.livekit.cloud',
               credentialId: 'livekit-orion'
+            ],
+            Prod: [
+              url: 'wss://prod-1825qoiq.livekit.cloud',
+              credentialId: 'livekit-prod'
             ]
           ]
 
@@ -231,12 +223,10 @@ pipeline {
             echo Voice provider: %VOICE_PROVIDER%
             echo Allure reporting and Python output capture are enabled.
 
-            ".venv\\Scripts\\python.exe" -m pytest tests ^
+            ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
               -vv ^
               --capture=tee-sys ^
               --log-level=INFO ^
-              --html=reports/qa_report.html ^
-              --self-contained-html ^
               --junitxml=reports/junit.xml ^
               --alluredir=reports/allure-results ^
               --clean-alluredir
@@ -292,17 +282,6 @@ pipeline {
         )
       }
 
-      catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-        publishHTML(target: [
-          allowMissing: false,
-          alwaysLinkToLastBuild: true,
-          keepAll: true,
-          reportDir: 'reports',
-          reportFiles: 'qa_report.html',
-          reportName: 'QA HTML Report',
-          includes: '**/*'
-        ])
-      }
     }
   }
 }

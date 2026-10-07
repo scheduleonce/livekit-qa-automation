@@ -6,7 +6,6 @@ import asyncio
 import gc
 import warnings
 import configparser
-from html import escape
 from pathlib import Path
 import re
 
@@ -72,7 +71,7 @@ def cleanup_after_test():
 
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_runtest_makereport(item, call):
-    """Attach the existing conversation transcript to HTML and Allure."""
+    """Attach the existing conversation transcript to the Allure report."""
     outcome = yield
     rep = outcome.get_result()
 
@@ -113,22 +112,7 @@ def pytest_runtest_makereport(item, call):
         print(f"Transcript read failed for {test_id}: {exc}")
         return
 
-    # Preserve the existing pytest-html transcript.
-    html_plugin = item.config.pluginmanager.getplugin("html")
-
-    if html_plugin:
-        try:
-            rep.extras = getattr(rep, "extras", []) or []
-            rep.extras.append(
-                html_plugin.extras.html(
-                    f"<h3>Transcript: {escape(test_id)}</h3>"
-                    f"<pre>{escape(content)}</pre>"
-                )
-            )
-        except Exception as exc:
-            print(f"HTML transcript attachment failed: {exc}")
-
-    # Attach the same clean Agent/Visitor conversation to Allure.
+    # Attach the clean Agent/Visitor conversation to Allure.
     if item.config.pluginmanager.hasplugin("allure_pytest"):
         try:
             import allure

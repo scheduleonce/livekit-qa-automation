@@ -11,6 +11,11 @@ pipeline {
       choices: ['App3', 'App2', 'Orion', 'Prod'],
       description: 'Target environment'
     )
+    string(
+      name: 'TEST_REPEAT_COUNT',
+      defaultValue: '1',
+      description: 'Number of times to run each selected test'
+    )
   }
 
   environment {
@@ -199,6 +204,14 @@ pipeline {
       }
 
       steps {
+        script {
+          def repeatCount = params.TEST_REPEAT_COUNT?.trim()
+          if (!(repeatCount ==~ /^[1-9][0-9]*$/)) {
+            error('TEST_REPEAT_COUNT must be a positive integer.')
+          }
+          env.TEST_REPEAT_COUNT = repeatCount
+        }
+
         withCredentials([
           usernamePassword(
             credentialsId: env.LIVEKIT_CREDENTIAL_ID,
@@ -225,6 +238,7 @@ pipeline {
 
             ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
               -vv ^
+              --count=%TEST_REPEAT_COUNT% ^
               --capture=tee-sys ^
               --log-level=INFO ^
               --junitxml=reports/junit.xml ^

@@ -1,0 +1,41 @@
+id: TC_LEAVE_MESSAGE_001
+name: "Take a Message - Standard Flow"
+type: "e2e_conversation"
+
+# 1. The Input (Simulated User Prompt)
+objective: >
+  You are a real customer who only wants to leave a message for the host. You do NOT want to book a meeting.
+  When the agent answers, immediately state that you would like to leave a message.
+  When the agent asks what the message is, provide your testData.message_content exactly as written.
+  When the agent asks for your name, provide your testData.name
+  After above if agent asks for other actions, state that nothing else is needed.
+
+# 2. The Golden Path (Sample Conversation for reference)
+reference_flow: >
+  Agent: How can I help you today? -> Caller: I just want to leave a message. -> Agent: I can help with that. What is the message you would like to leave? -> Caller: Please let the team know that the Q3 marketing report is ready for review on the shared drive. -> Agent: Thank you, I have noted that down. May I have your name? -> Caller: My name is Jessica Jones.-> Agent: Thank you, is there anything else you like to do? -> Caller:  That's all I need today, thank you [END_CALL].
+
+# 3. The Test Data variables
+testData:
+  name: "Jessica Jones"
+  message_content: "Please let the team know that the Q3 marketing report is ready for review on the shared drive."
+
+# 4. The Assertions: LLM Judge evaluates the message capture flow
+expectedOutcomes:
+  - id: llm_judge_message_flow
+    description: >
+      Judge the full conversation end-to-end based on the following strict criteria:
+      1. Intent Recognition: Did the agent correctly identify the intent to take a message rather than schedule a meeting?
+      2. Message Capture: Did the agent explicitly ask for the message content and successfully acknowledge receiving the correct message?
+      3. Name Capture: Did the agent correctly prompt for the caller's name after securing the message and capture it correctly?
+      4. Task Completion: Did the conversation conclude gracefully as a taken message without the agent attempting to force the caller into a scheduling or qualification flow?
+      5. Holistic Quality Assessment: Scrutinize the transcript for any hallucinations, unnatural loops, or failure to respect the caller's intent to simply leave a message and disconnect.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"

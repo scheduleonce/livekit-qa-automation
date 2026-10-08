@@ -2,6 +2,7 @@ livekit
 livekit-api
 pytest
 pytest-asyncio
+pytest-repeat>=0.9.3
 pyyaml
 openai
 numpy

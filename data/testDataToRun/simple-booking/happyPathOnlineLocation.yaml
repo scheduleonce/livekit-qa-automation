@@ -35,26 +35,38 @@ testData:
   phone_number: "9847635355"
   preferred_time: "Tomorrow at the earliest time possible"
   preferred meeting option: "online"
+  preferred_duration: "30 minutes"
   company_name: "Vedanta"
   budget: "thirty thousand dollars"
 
-# 4. The Assertions
+# 4. The Assertions: Comprehensive LLM Judge Evaluation
 expectedOutcomes:
   - id: llm_judge
     description: >
       Judge the full conversation end-to-end based on the following strict criteria:
-      1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
-      2. Email capture: Did the agent asked for email and captured email correctly?
-      3. Phone capture: Did the agent asked for phone number and captured it correctly?
-      4. Task Completion: Did the conversation successfully conclude with a confirmed online meeting and email, sms notificaion confirmation?
-
-      Next, perform a Holistic Quality & Hallucination Assessment:
-      5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
-         - Hallucinating facts, policies, locations, or business rules.
-         - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
-         - Ignoring user inputs or abruptly dropping context.
-         - Getting stuck in repetitive loops or outputting raw system text/code.
-      The interaction must be logically sound, strictly bounded to its persona, and completely free of hallucinations from start to finish.
+      
+      1. Intent & Preferences: 
+         - Did the agent correctly identify the intent to schedule a meeting?
+         - Did the agent correctly capture the requested duration (30 minutes) and location preference (online)?
+      
+      2. Time Slot Negotiation & Consistency (CRITICAL):
+         - Did the agent suggest a specific time slot based on the user's availability?
+         - Did the final confirmed meeting time strictly match the specific time slot that was negotiated and agreed upon earlier in the call? 
+      
+      3. Contact Information Capture & Correction Handling:
+         - Name: Did the agent ask for and correctly confirm the caller's first and last name?
+         - Email capture: Did the agent asked for email and captured email correctly?
+         - Phone: Did the agent ask for the phone number and confirm it properly (including formatting with country codes like +91)?
+      
+      4. Custom Qualification Questions:
+         - Did the agent successfully ask for and capture the SMS notification preference?
+         
+      5. Task Completion & Specific Result Output:
+         - Did the conversation successfully conclude with a confirmed meeting? 
+         - In your evaluation result, you MUST explicitly state the meeting details in this exact format based on the transcript: "(online meeting was successfully confirmed for [Day], [Date], at [Time] [Timezone])."
+         
+      6. Holistic Quality & Hallucination Assessment:
+         - Scrutinize the entire transcript for any hallucinations. The interaction must be logically sound, strictly bounded to its persona, and completely free of hallucinated times, dates, or contact details.
     evaluator:
       type: llm_judge
 

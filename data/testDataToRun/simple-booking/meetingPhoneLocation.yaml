@@ -2,6 +2,7 @@ id: TC_SCHED_PHONE_001
 name: "Basic successful appointment booking"
 type: "e2e_conversation"
 
+
 # 1. The Input (Simulated User Prompt)
 objective: >
   You want to book a meeting. 

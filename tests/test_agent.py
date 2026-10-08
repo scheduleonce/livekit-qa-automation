@@ -14,6 +14,9 @@ load_dotenv()
 
 @pytest.mark.asyncio
 async def test_voice_agent(scenario):
+    group = scenario.get("_source_group", "Ungrouped")
+    allure.dynamic.parent_suite("LiveKit QA")
+    allure.dynamic.suite(group.replace("_", " ").replace("-", " ").title())
     allure.dynamic.title(scenario["id"])
 
     Utility.prepare_reply_audio_dir(self=Utility())

@@ -13,37 +13,50 @@ from src.config import get_target_environment
 
 target_env = get_target_environment()
 
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--scenario-group",
+        default=None,
+        help="Only collect scenarios from this folder under data/testDataToRun",
+    )
+
+
 def pytest_generate_tests(metafunc):
     if "scenario" in metafunc.fixturenames:
         scenarios = []
-        base_dir = os.path.dirname(os.path.dirname(__file__))
+        scenario_root = Path(__file__).resolve().parent.parent / "data" / "testDataToRun"
+        selected_group = metafunc.config.getoption("--scenario-group")
+        available_groups = set()
 
-        yaml_files = glob.glob(
-            os.path.join(
-                base_dir,
-                "data/testDataToRun",
-                "**",
-                "*.yaml",
-            ),
-            recursive=True,
-        )
+        yaml_files = sorted(scenario_root.rglob("*.yaml"))
 
         for file in yaml_files:
-            with open(file, "r") as f:
+            relative_parts = file.relative_to(scenario_root).parts
+            folder_group = relative_parts[0] if len(relative_parts) > 1 else "Ungrouped"
+            available_groups.add(folder_group)
+
+            with open(file, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
-                # Preserve the source file for per-file configuration.
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict):
-                            item["_source_file"] = file
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if isinstance(item, dict):
+                        # Allow YAML 'group' override, default to folder name
+                        source_group = item.get("group", folder_group)
+                        
+                        if selected_group and source_group.casefold() != selected_group.casefold():
+                            continue
+                            
+                        item["_source_file"] = str(file)
+                        item["_source_group"] = source_group
+                        scenarios.append(item)
 
-                    scenarios.extend(data)
-                else:
-                    if isinstance(data, dict):
-                        data["_source_file"] = file
-
-                    scenarios.append(data)
+        if selected_group and not scenarios:
+            groups = ", ".join(sorted(available_groups)) or "none"
+            raise pytest.UsageError(
+                f"No scenarios found for group {selected_group!r}. Available groups: {groups}"
+            )
 
         metafunc.parametrize(
             "scenario",

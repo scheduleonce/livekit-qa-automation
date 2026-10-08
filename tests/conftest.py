@@ -9,6 +9,9 @@ import configparser
 from pathlib import Path
 import re
 
+from src.config import get_target_environment
+
+target_env = get_target_environment()
 
 def pytest_generate_tests(metafunc):
     if "scenario" in metafunc.fixturenames:
@@ -119,7 +122,7 @@ def pytest_runtest_makereport(item, call):
 
             allure.attach(
                 content,
-                name=f"Conversation Transcript: {test_id}",
+                name=f"Conversation Transcript: {target_env}_{test_id}",
                 attachment_type=allure.attachment_type.TEXT,
             )
         except Exception as exc:

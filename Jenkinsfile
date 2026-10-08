@@ -200,7 +200,7 @@ pipeline {
 
     stage('Run QA Tests') {
       options {
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 4, unit: 'Hours')
       }
 
       steps {

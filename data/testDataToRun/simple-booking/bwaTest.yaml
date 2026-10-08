@@ -1,5 +1,5 @@
-id: TC_SCHED_PHONE_001
-name: "Basic successful appointment booking"
+id: TC_BWA_001
+name: "Basic successful booking request submitted for approval"
 type: "e2e_conversation"
 
 # 1. The Input (Simulated User Prompt)
@@ -29,48 +29,38 @@ reference_flow: >
 
 # 3. The Test Data variables
 testData:
-  name: "Peter George"
-  email: "george9@staticso2.com"
+  name: "Henry George"
+  email: "henry8@staticso2.com"
   city: "Bangalore"
-  phone_number: "9877635621"
-  phone_call_number: "9980043170"
+  phone_number: "8887635621"
+  phone_call_number: "7780043170"
   preferred_time: "Next week"
   preferred meeting option: "phone"
   company_name: "Vedanta"
   budget: "thirty thousand dollars"
 
-# 4. The Assertions
+# 4. The Assertions: LLM Judge evaluates the entire flow for hallucinations
 expectedOutcomes:
-  - id: intent_identified
-    description: "The agent correctly identified the intent to book a demo."
+  - id: llm_judge_e2e
+    description: >
+      Judge the full conversation end-to-end based on the following strict criteria:
+      1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
+      2. Constraint Enforcement: Did the agent strictly enforce that ONLY 'phone' meetings are available?
+      3. Task Completion: Did the conversation conclude with the agent successfully submitting a booking request for a phone meeting? The agent must clearly communicate that the appointment is requested/pending, and MUST NOT falsely claim or guarantee that the booking is finalized or 'successfully confirmed'.
+      Next, perform a Holistic Quality & Hallucination Assessment:
+      4. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
+         - Hallucinating facts, policies, locations, or business rules.
+         - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
+         - Ignoring user inputs or abruptly dropping context.
+         - Getting stuck in repetitive loops or outputting raw system text/code.
+      The interaction must be logically sound, strictly bounded to its persona, and completely free of hallucinations from start to finish.
     evaluator:
-      type: regex
-      pattern: "schedule|demo|software|book"
-      
-  - id: meeting_confirmed
-    description: "The agent successfully scheduled the meeting for the specified time."
-    evaluator:
-      type: regex
-      pattern: "meeting is confirmed|scheduled for|see you on|looking forward to"
-      
-  - id: asked_email
-    description: "The agent asked for the caller's email address."
-    evaluator:
-      type: regex
-      pattern: "email|address"
-      
-  - id: asked_phone
-    description: "The agent asked for the caller's phone number."
-    evaluator:
-      type: regex
-      pattern: "phone|number"
+      type: llm_judge
 
 environments:
   App3:
-    target_bot_id: "2"
+    target_bot_id: "8"
   App2:
-    target_bot_id: "1"
+    target_bot_id: "4"
   Orion:
     target_bot_id: "2"
-  Prod:
-    target_bot_id: "4"

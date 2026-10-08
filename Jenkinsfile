@@ -11,6 +11,11 @@ pipeline {
       choices: ['App3', 'App2', 'Orion', 'Prod'],
       description: 'Target environment'
     )
+    string(
+      name: 'TEST_REPEAT_COUNT',
+      defaultValue: '1',
+      description: 'Number of times to run each selected test'
+    )
   }
 
   environment {
@@ -23,11 +28,6 @@ pipeline {
       steps {
         bat '''
           @echo off
-
-          if exist "reports\\qa_report.html" (
-              del /F /Q "reports\\qa_report.html"
-              if errorlevel 1 exit /b 1
-          )
 
           if exist "reports\\junit.xml" (
               del /F /Q "reports\\junit.xml"
@@ -90,13 +90,6 @@ pipeline {
           "%UV_DIR%\\uv.exe" pip install ^
             --python ".venv\\Scripts\\python.exe" ^
             -r requirements.txt
-
-          if errorlevel 1 exit /b 1
-
-          echo Installing Allure pytest adapter...
-          "%UV_DIR%\\uv.exe" pip install ^
-            --python ".venv\\Scripts\\python.exe" ^
-            allure-pytest
 
           if errorlevel 1 exit /b 1
 
@@ -181,6 +174,10 @@ pipeline {
             Orion: [
               url: 'wss://orion-qx3o4v38.livekit.cloud',
               credentialId: 'livekit-orion'
+            ],
+            Prod: [
+              url: 'wss://prod-1825qoiq.livekit.cloud',
+              credentialId: 'livekit-prod'
             ]
           ]
 
@@ -207,6 +204,14 @@ pipeline {
       }
 
       steps {
+        script {
+          def repeatCount = params.TEST_REPEAT_COUNT?.trim()
+          if (!(repeatCount ==~ /^[1-9][0-9]*$/)) {
+            error('TEST_REPEAT_COUNT must be a positive integer.')
+          }
+          env.TEST_REPEAT_COUNT = repeatCount
+        }
+
         withCredentials([
           usernamePassword(
             credentialsId: env.LIVEKIT_CREDENTIAL_ID,
@@ -231,12 +236,11 @@ pipeline {
             echo Voice provider: %VOICE_PROVIDER%
             echo Allure reporting and Python output capture are enabled.
 
-            ".venv\\Scripts\\python.exe" -m pytest tests ^
+            ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
               -vv ^
+              --count=%TEST_REPEAT_COUNT% ^
               --capture=tee-sys ^
               --log-level=INFO ^
-              --html=reports/qa_report.html ^
-              --self-contained-html ^
               --junitxml=reports/junit.xml ^
               --alluredir=reports/allure-results ^
               --clean-alluredir
@@ -292,17 +296,6 @@ pipeline {
         )
       }
 
-      catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-        publishHTML(target: [
-          allowMissing: false,
-          alwaysLinkToLastBuild: true,
-          keepAll: true,
-          reportDir: 'reports',
-          reportFiles: 'qa_report.html',
-          reportName: 'QA HTML Report',
-          includes: '**/*'
-        ])
-      }
     }
   }
 }

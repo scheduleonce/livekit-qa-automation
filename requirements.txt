@@ -2,11 +2,12 @@ livekit
 livekit-api
 pytest
 pytest-asyncio
+pytest-repeat>=0.9.3
 pyyaml
 openai
 numpy
 scipy
 python-dotenv
-pytest-html
+allure-pytest
 edge-tts==7.2.8
 imageio-ffmpeg

@@ -59,7 +59,7 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "3"
+    target_bot_id: "8"
   App2:
     target_bot_id: "4"
   Orion:

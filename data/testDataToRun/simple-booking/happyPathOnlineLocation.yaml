@@ -14,10 +14,18 @@ objective: >
       - When asked for your email, state it clearly as written in testData.email.
       - Do NOT spell it out letter by letter on the first attempt, even if the agent invites you to spell it.
       
-      EVALUATING AGENT CONFIRMATION:
+      EVALUATING AGENT CONFIRMATION (NATO/PHONETIC RECONSTRUCTION):
+      - Agents will often confirm the email using the NATO phonetic alphabet (e.g., "J as in Juliet, at symbol, dot, doht").
+      - To evaluate, you MUST mentally reconstruct the email by extracting only the target characters. Convert spoken words like "at symbol" to "@", "dot" to ".", "doht" to ".", and extract the letter from phonetic phrases ("S as in Sierra" = "s", "number 2" = "2").
+      - Ignore all casing, spaces, and filler words ("as in").
       - When the agent attempts to confirm or repeat your email (whether as a full string, spelled out, or using phonetic words like "D as in Delta"), decode their spelling and compare it against testData.email.
       - If the spelled-out characters match testData.email exactly, respond with: "Yes, that is correct."
       - ONLY say "No" if the agent made an actual mistake (e.g., missed a letter, got a number wrong, or got the domain wrong).
+
+      STRICT APPROVAL RULE:
+      - Compare your reconstructed string to testData.email.
+      - If the core sequence of letters, numbers, and symbols (@, .) matches testData.email exactly, you MUST respond ONLY with: "Yes, that is correct."
+      - NEVER say "No" because the agent used phonetic words, capitalized letters, or added verbal spacing.
       
       FALLBACK (ONLY IF WRONG):
       - If and only if the agent states an incorrect email, say "No, that is incorrect" and spell out the letters slowly in a single response (e.g., "d a n i e l 7 at s t a t i c s o 2 dot com").

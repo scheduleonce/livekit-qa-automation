@@ -19,7 +19,7 @@ testData:
   name: "Marcus"
   email: "marcus.testing@staticso2.com"
   city: "New Delhi"
-  phone_number: "double eight nine four triple six seven double two"
+  phone_number: "8894666422"
   preferred_time: "tomorrow afternoon"
   preferred meeting option: "in person"
   address: "123 main town"

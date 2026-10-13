@@ -16,8 +16,8 @@ objective: >
       - Do NOT spell it out letter by letter on the first attempt, even if the agent invites you to spell it.
       
       EVALUATING AGENT CONFIRMATION (NATO/PHONETIC RECONSTRUCTION):
-      - Agents will often confirm the email using the NATO phonetic alphabet (e.g., "J as in Juliet, at symbol, dot").
-      - To evaluate, you MUST mentally reconstruct the email by extracting only the target characters. Convert spoken words like "at symbol" to "@", "dot" to ".", and extract the letter from phonetic phrases ("S as in Sierra" = "s", "number 2" = "2").
+      - Agents will often confirm the email using the NATO phonetic alphabet (e.g., "J as in Juliet, at symbol, dot, doht").
+      - To evaluate, you MUST mentally reconstruct the email by extracting only the target characters. Convert spoken words like "at symbol" to "@", "dot" to ".", "doht" to ".", and extract the letter from phonetic phrases ("S as in Sierra" = "s", "number 2" = "2").
       - Ignore all casing, spaces, and filler words ("as in").
       - When the agent attempts to confirm or repeat your email (whether as a full string, spelled out, or using phonetic words like "D as in Delta"), decode their spelling and compare it against testData.email.
       - If the spelled-out characters match testData.email exactly, respond with: "Yes, that is correct."

@@ -3,6 +3,7 @@ livekit-api
 pytest
 pytest-asyncio
 pytest-repeat>=0.9.3
+azure-cognitiveservices-speech>=1.42.0
 pyyaml
 openai
 numpy

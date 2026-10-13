@@ -22,6 +22,62 @@ REPLY_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 CONFIG_JSON_PATH = PROJECT_ROOT / "data" / "livekit_bot_config.json"
 DEFAULT_HAPPY_PATHS_YAML = PROJECT_ROOT / "data" / "happy_paths.yaml"
+CONNECT_TIMEOUT_SECONDS = 30
+WELCOME_TIMEOUT_SECONDS = 60
+CONVERSATION_TIMEOUT_SECONDS = 600
+TURN_TIMEOUT_SECONDS = 90
+CLEANUP_TIMEOUT_SECONDS = 10
+MAX_AGENT_TURNS = 60
+MAX_CONSECUTIVE_HOLD_PROMPTS = 3
+
+HOLD_PROMPT_MARKERS = (
+    "please wait",
+    "please hold",
+    "one moment",
+    "hold on",
+    "give me a second",
+    "still working on",
+    "thank you for your patience",
+    "thank you for waiting",
+    "bear with me",
+)
+
+
+def _is_hold_prompt(agent_text: str) -> bool:
+    normalized_text = agent_text.casefold()
+    return any(marker in normalized_text for marker in HOLD_PROMPT_MARKERS)
+
+
+async def _wait_for_event(
+    event: asyncio.Event,
+    timeout_seconds: int,
+    timeout_message: str,
+) -> None:
+    try:
+        await asyncio.wait_for(event.wait(), timeout=timeout_seconds)
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError(timeout_message) from exc
+
+
+async def _bounded_cleanup(awaitable, operation: str) -> None:
+    task = asyncio.create_task(awaitable)
+    done, _ = await asyncio.wait(
+        {task},
+        timeout=CLEANUP_TIMEOUT_SECONDS,
+    )
+
+    if not done:
+        task.cancel()
+        print(f"WARNING: {operation} exceeded cleanup timeout")
+        done, _ = await asyncio.wait({task}, timeout=1)
+
+    if done:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            print(f"WARNING: {operation} failed: {exc}")
 
 
 async def run_livekit_test(
@@ -59,12 +115,11 @@ async def run_livekit_test(
 
     test_finished = asyncio.Event()
     first_transcription_received = asyncio.Event()
-    turn_error = None
-
-    active_tasks: set[asyncio.Task] = set()
+    turn_queue: asyncio.Queue[tuple[str, float | None]] = asyncio.Queue()
+    turn_error: Exception | None = None
+    turn_processor_task: asyncio.Task | None = None
 
     # Conversation lifecycle flags.
-    turn_in_progress = False
     shutting_down = False
     room_connected = False
 
@@ -72,8 +127,10 @@ async def run_livekit_test(
     last_caller_speech_end = time.time()
     first_word_received = False
     current_agent_latency = None
+    agent_turn_count = 0
+    consecutive_hold_prompts = 0
 
-    async def handle_turn(agent_text: str):
+    async def handle_turn(agent_text: str, agent_latency: float | None):
         """
         Handle one completed agent transcription.
 
@@ -84,8 +141,9 @@ async def run_livekit_test(
         nonlocal current_agent_latency
         nonlocal last_caller_speech_end
         nonlocal first_word_received
-        nonlocal turn_in_progress
         nonlocal turn_error
+        nonlocal agent_turn_count
+        nonlocal consecutive_hold_prompts
 
         wav_file: Path | None = None
         should_end_call = False
@@ -97,28 +155,25 @@ async def run_livekit_test(
                 print("DEBUG: Ignoring empty final transcription")
                 return
 
-            print(f"DEBUG: Handling turn with agent_text: {agent_text}")
+            agent_turn_count += 1
+            if agent_turn_count > MAX_AGENT_TURNS:
+                raise RuntimeError(
+                    f"Conversation exceeded the limit of {MAX_AGENT_TURNS} agent turns."
+                )
 
-            ignore_phrases = [
-                "wait a moment",
-                "one moment please",
-                "give me a second",
-                "hold on",
-                "please wait",
-                "i'm still working on",
-                "i’m still working on",
-                "great. i'll proceed with that slot",
-                "great. i’ll proceed with that slot",
-            ]
+            print(
+                "DEBUG: Handling agent transcription "
+                f"({len(agent_text)} characters)"
+            )
 
             current_agent_message = {
                 "role": "user",
                 "content": agent_text,
             }
 
-            if current_agent_latency is not None:
+            if agent_latency is not None:
                 current_agent_message["latency_sec"] = (
-                    current_agent_latency
+                    agent_latency
                 )
 
             caller.conversation_history.append(
@@ -126,17 +181,29 @@ async def run_livekit_test(
             )
 
             current_agent_latency = None
-            normalized_text = agent_text.lower()
 
-            if any(
-                phrase in normalized_text
-                for phrase in ignore_phrases
-            ):
-                print("DEBUG: Ignoring filler phrase")
+            if _is_hold_prompt(agent_text):
+                consecutive_hold_prompts += 1
                 first_word_received = False
+
+                if consecutive_hold_prompts >= MAX_CONSECUTIVE_HOLD_PROMPTS:
+                    raise RuntimeError(
+                        "Agent repeated hold/wait prompts "
+                        f"{consecutive_hold_prompts} times without progressing."
+                    )
+
+                print(
+                    "DEBUG: Ignoring agent hold prompt "
+                    f"({consecutive_hold_prompts}/"
+                    f"{MAX_CONSECUTIVE_HOLD_PROMPTS})"
+                )
                 return
 
-            reply = await caller.generate_reply(agent_text)
+            consecutive_hold_prompts = 0
+            reply = await asyncio.wait_for(
+                caller.generate_reply(agent_text),
+                timeout=TURN_TIMEOUT_SECONDS,
+            )
 
             if "[END_CALL]" in reply:
                 should_end_call = True
@@ -151,16 +218,19 @@ async def run_livekit_test(
                     )
                     return
 
-                print(f"DEBUG: Playing reply: {reply}")
+                print(
+                    "DEBUG: Playing simulated caller audio : "
+                    f"{reply}"
+                )
 
                 wav_file = (
                     REPLY_AUDIO_DIR
                     / f"dynamic_reply_{uuid.uuid4().hex}.wav"
                 )
 
-                await generate_wav_from_text(
-                    reply,
-                    str(wav_file),
+                await asyncio.wait_for(
+                    generate_wav_from_text(reply, str(wav_file)),
+                    timeout=TURN_TIMEOUT_SECONDS,
                 )
 
                 print(f"DEBUG: Generated WAV file: {wav_file}")
@@ -174,9 +244,9 @@ async def run_livekit_test(
                     )
                     return
 
-                await play_audio_to_agent(
-                    room,
-                    str(wav_file),
+                await asyncio.wait_for(
+                    play_audio_to_agent(room, str(wav_file)),
+                    timeout=TURN_TIMEOUT_SECONDS,
                 )
 
                 last_caller_speech_end = time.time()
@@ -192,12 +262,11 @@ async def run_livekit_test(
 
         except Exception as exc:
             turn_error = exc
-            print(f"ERROR in handle_turn: {exc}")
+            print(f"ERROR while handling conversation turn: {exc}")
 
             import traceback
             traceback.print_exc()
 
-            # Stop promptly so pytest can finish and write its HTML report.
             test_finished.set()
 
         finally:
@@ -216,7 +285,16 @@ async def run_livekit_test(
                         f"{wav_file}: {cleanup_error}"
                     )
 
-            turn_in_progress = False
+    async def process_turn_queue() -> None:
+        while True:
+            agent_text, agent_latency = await turn_queue.get()
+            try:
+                await handle_turn(agent_text, agent_latency)
+            finally:
+                turn_queue.task_done()
+
+            if test_finished.is_set():
+                return
 
     @room.on("transcription_received")
     def on_transcription(
@@ -227,7 +305,6 @@ async def run_livekit_test(
         nonlocal last_caller_speech_end
         nonlocal first_word_received
         nonlocal current_agent_latency
-        nonlocal turn_in_progress
 
         # Ignore transcriptions generated by the local QA participant.
         if (
@@ -269,33 +346,13 @@ async def run_livekit_test(
                 continue
 
             print(
-                "DEBUG: transcription_received "
-                f"segment text={text!r} "
-                f"final={segment.final} "
-                f"participant="
-                f"{getattr(participant, 'identity', None)}"
+                "DEBUG: Final agent transcription received : "
+                f"{text}"
             )
 
             first_transcription_received.set()
-
-            # Prevent overlapping conversation turns.
-            if turn_in_progress:
-                print(
-                    "DEBUG: Ignoring final transcription while "
-                    f"another turn is active: {text!r}"
-                )
-                continue
-
-            # Set the flag before creating the task so another event
-            # cannot create a second task during the scheduling gap.
-            turn_in_progress = True
-
-            task = asyncio.create_task(
-                handle_turn(text)
-            )
-
-            active_tasks.add(task)
-            task.add_done_callback(active_tasks.discard)
+            turn_queue.put_nowait((text, current_agent_latency))
+            current_agent_latency = None
 
     scenario_id = str(
         scenario_data.get("id", "unknown")
@@ -336,33 +393,36 @@ async def run_livekit_test(
             f"room={room_name}"
         )
 
-        await room.connect(livekit_url, token)
+        await asyncio.wait_for(
+            room.connect(livekit_url, token),
+            timeout=CONNECT_TIMEOUT_SECONDS,
+        )
         room_connected = True
 
         print("DEBUG: Successfully connected to room")
 
         last_caller_speech_end = time.time()
 
-    except Exception as exc:
+    except BaseException as exc:
         print(
             f"ERROR: Failed to connect to LiveKit room: {exc}"
         )
-
-        import traceback
-        traceback.print_exc()
-
+        await _bounded_cleanup(caller.close(), "simulated caller client close")
         raise
 
-    # Wait for the initial welcome message.
+    turn_processor_task = asyncio.create_task(process_turn_queue())
+
     try:
         print(
             "DEBUG: Waiting for agent welcome transcription "
-            "(timeout=60s)"
+            f"(timeout={WELCOME_TIMEOUT_SECONDS}s)"
         )
 
-        await asyncio.wait_for(
-            first_transcription_received.wait(),
-            timeout=60.0,
+        await _wait_for_event(
+            first_transcription_received,
+            WELCOME_TIMEOUT_SECONDS,
+            "No agent welcome transcription was received within "
+            f"{WELCOME_TIMEOUT_SECONDS} seconds.",
         )
 
         print(
@@ -370,66 +430,39 @@ async def run_livekit_test(
             "proceeding with conversation"
         )
 
-    except asyncio.TimeoutError:
-        print(
-            "DEBUG: No welcome transcription from agent within "
-            "60 seconds. Continuing to wait."
+        await _wait_for_event(
+            test_finished,
+            CONVERSATION_TIMEOUT_SECONDS,
+            "Conversation did not finish within "
+            f"{CONVERSATION_TIMEOUT_SECONDS} seconds.",
         )
 
-    # Wait for [END_CALL] or the overall test timeout.
-    try:
-        await asyncio.wait_for(
-            test_finished.wait(),
-            timeout=600.0,
-        )
-
-    except asyncio.TimeoutError:
-        print("Test timed out after 600 seconds.")
+    except asyncio.TimeoutError as exc:
+        turn_error = exc
+        print(f"ERROR: {turn_error}")
 
     finally:
-        # Prevent transcription events from creating new tasks.
         shutting_down = True
 
-        # Capture the current tasks once. A while-loop is intentionally
-        # avoided because completed tasks can remain in the set until
-        # their done callbacks receive another event-loop cycle.
-        if active_tasks:
-            pending_tasks = list(active_tasks)
-
-            print(
-                f"DEBUG: Waiting for {len(pending_tasks)} "
-                "pending task(s)..."
+        if turn_processor_task and not turn_processor_task.done():
+            turn_processor_task.cancel()
+            done, _ = await asyncio.wait(
+                {turn_processor_task},
+                timeout=CLEANUP_TIMEOUT_SECONDS,
             )
-
-            await asyncio.gather(
-                *pending_tasks,
-                return_exceptions=True,
-            )
-
-            # Explicitly remove them instead of depending only on
-            # the asynchronous done callback.
-            active_tasks.difference_update(pending_tasks)
+            if not done:
+                print("WARNING: Turn processor did not stop during cleanup")
 
         if room_connected:
-            try:
-                room_connected = False
-
-                await room.disconnect()
-
-                print(
-                    "DEBUG: Room disconnected successfully"
-                )
-
-            except Exception as exc:
-                print(
-                    "ERROR: Failed to disconnect room: "
-                    f"{exc}"
-                )
+            room_connected = False
+            await _bounded_cleanup(room.disconnect(), "LiveKit room disconnect")
+            print("DEBUG: Room disconnect requested")
 
     if turn_error is not None:
+        await _bounded_cleanup(caller.close(), "simulated caller client close")
         raise RuntimeError(
-            "LiveKit conversation stopped because a conversation turn failed. "
-            "Check the TTS/audio configuration and the preceding traceback."
+            "LiveKit conversation did not complete successfully: "
+            f"{turn_error}"
         ) from turn_error
 
     return caller.conversation_history, caller

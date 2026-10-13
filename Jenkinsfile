@@ -20,7 +20,7 @@ pipeline {
 
   environment {
     CI = 'true'
-    VOICE_PROVIDER = 'edge'
+    VOICE_PROVIDER = 'azure-speech'
   }
 
   stages {

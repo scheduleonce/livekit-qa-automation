@@ -92,7 +92,7 @@ def _synthesize_azure_speech(
 
 async def _generate_azure_speech_wav(text: str, output_file: Path, voice: str) -> None:
     """Generate 48kHz WAV audio using Azure Speech SDK offloaded to an async thread."""
-    speech_key = os.getenv("AZURE_SPEECH_KEY", "").strip()
+    speech_key = os.environ.get("AZURE_SPEECH_KEY")
     #speech_endpoint = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
     speech_endpoint = AZURE_SPEECH_ENDPOINT
 

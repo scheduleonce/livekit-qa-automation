@@ -222,6 +222,7 @@ pipeline {
             credentialsId: 'AZURE_SPEECH_KEY',
             usernameVariable: 'AZURE_SPEECH_USER',
             passwordVariable: 'AZURE_SPEECH_KEY'
+          )
         ]) {
           bat '''
             @echo off

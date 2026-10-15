@@ -1,0 +1,73 @@
+# TC-007: Mid-Booking KB Interruption with Context Resume
+- id: TC_KB_INTERRUPT_007
+  name: "KB question mid-booking — context retained on resume"
+  type: "e2e_conversation"
+
+  objective: >
+    You are in a booking flow. When the agent asks for a date, instead of
+    answering, ask the KB question written in testData first.
+    After the agent answers the KB question, say okay thank you and then
+    provide your preferred date to resume the booking.
+    Provide all other details exactly as written in testData when asked.
+
+  reference_flow: >
+    Agent: How can I help? ->
+    Caller: I want to book a meeting for a bike loan. ->
+    Agent: When would you like to meet? ->
+    Caller: Before that, what are your office hours? ->
+    Agent: Answers KB question. ->
+    Caller: Okay thank you. I would like to meet next Monday. ->
+    Agent: Continues booking from date selection — does NOT restart. ->
+    Agent: Meeting confirmed.
+
+  testData:
+    name: "Helen Carter"
+    email: "helen.carter@testco.com"
+    phone_number: "7712345678"
+    preferred_date: "Next Monday"
+    kb_question: "What are your office hours?"
+    calendar_intent: "bike loan"
+    preferred_meeting_option: "online"
+
+  expectedOutcomes:
+    - id: kb_answered_mid_booking
+      description: "Agent answers KB question correctly when asked mid-booking flow."
+      evaluator:
+        type: regex
+        pattern: "hours|open|monday|friday|am|pm"
+
+    - id: context_retained
+      description: "After KB answer, agent resumes booking from where it left off — not from start."
+      evaluator:
+        type: llm
+        prompt: >
+          After the agent answered the office hours question, did it ask the
+          caller what they want to discuss or restart the booking from the
+          beginning? Or did it resume from asking for the date or continuing
+          the booking flow? Answer RESTARTED if it restarted, RESUMED if it
+          continued correctly.
+        expected: "RESUMED"
+
+    - id: timezone_not_re_asked
+      description: "Agent does not re-ask timezone after KB interruption."
+      evaluator:
+        type: llm
+        prompt: >
+          After the KB interruption and booking resumption, did the agent
+          re-ask for timezone confirmation even though it was already confirmed
+          earlier? Answer YES if it re-asked, NO if it did not.
+        expected: "NO"
+
+    - id: meeting_confirmed
+      description: "Meeting is confirmed after KB interruption and context resume."
+      evaluator:
+        type: regex
+        pattern: "confirmed|scheduled|booked|looking forward"
+
+  environments:
+    App3:
+      target_bot_id: "2"
+    App2:
+      target_bot_id: "1"
+    Orion:
+      target_bot_id: "2"

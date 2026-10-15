@@ -1,0 +1,72 @@
+id: TC_KB_ONCEHUB_INFORMATION_001
+name: Answer customer questions about OnceHub
+type: e2e_conversation
+
+tags:
+  - knowledgeBase
+
+objective: >
+  You are considering using OnceHub and want information before deciding what
+  to do next. Start by saying you have a few questions about the company and
+  its website. Ask about OnceHub, its services, pricing, and product.
+
+reference_flow: >
+  Caller: I am considering using OnceHub and I have a few questions about the
+  company and website. -> Agent: Invites the customer to ask. -> Caller: What
+  is the Engage plan? -> Agent: Answers clearly or states that it cannot
+  confirm something from the available information. -> Caller: Please provide
+  further details. -> Agent: Answers from available information or says it
+  cannot confirm. -> Caller: What is the Route plan? -> Agent: Gives only
+  supported pricing information or says pricing is not available or cannot be
+  confirmed. -> Caller: Give me insight about OnceHub's AI capabilities. ->
+  Agent: Explains the website information or says it cannot confirm details
+  beyond the available information. -> Caller: Thanks the agent and ends the
+  call naturally.
+
+
+expectedOutcomes:
+  - id: answers_each_knowledge_question
+    description: >
+      Review the complete conversation and confirm the caller asks all four
+      questions from the scenario: what OnceHub is, what services it provides,
+      its pricing, and what customers can buy or do through its website.
+      The agent should respond to each question in turn, with a relevant answer
+      when it has information or a clear statement that it cannot confirm the
+      answer from its available information. Fail if it skips questions,
+      changes the subject, gives unrelated boilerplate, or ends the call before
+      the questions are handled.
+    evaluator:
+      type: llm_judge
+  - id: responses_are_clear_and_grounded
+    description: >
+      Judge the quality of the agent's answers across all four topics. Answers
+      should be understandable, relevant to the specific question, and not
+      presented with unsupported certainty. In particular, the agent must not
+      invent specific prices, plans, services, products, ordering capabilities,
+      delivery terms, or return policies. When information is unavailable or
+      unclear, it should say so plainly and offer an appropriate next step, such
+      as checking the official website or connecting the caller with someone
+      who can confirm. Do not require any specific company fact that is not
+      included in this scenario; the judge only has the conversation transcript
+      and cannot independently inspect the live knowledge base.
+    evaluator:
+      type: llm_judge
+  - id: conversation_handles_followups_naturally
+    description: >
+      Confirm the agent handles the questions as a natural customer-service
+      conversation: it listens to each question, responds before moving on, and
+      remains polite and consistent. Fail for repeated loops, contradictory
+      claims, raw system text, or claims that an inquiry, purchase, or other
+      action was completed when the caller did not request or complete it.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "11"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "2"

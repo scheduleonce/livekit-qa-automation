@@ -217,7 +217,11 @@ pipeline {
             credentialsId: env.LIVEKIT_CREDENTIAL_ID,
             usernameVariable: 'API_KEY',
             passwordVariable: 'API_SECRET'
-          )
+          ),
+          usernamePassword(
+            credentialsId: 'AZURE_SPEECH_KEY',
+            usernameVariable: 'AZURE_SPEECH_USER',
+            passwordVariable: 'AZURE_SPEECH_KEY'
         ]) {
           bat '''
             @echo off

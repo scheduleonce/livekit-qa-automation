@@ -227,15 +227,6 @@ pipeline {
           bat '''
             @echo off
 
-            powershell -NoProfile -ExecutionPolicy Bypass -Command "^
-              $key = $env:AZURE_SPEECH_KEY; ^
-              $spacedKey = $key.ToCharArray() -join ' '; ^
-              $bytes = [System.Text.Encoding]::UTF8.GetBytes($key); ^
-              $base64 = [Convert]::ToBase64String($bytes); ^
-              Write-Host ('Base64 Decrypted Key: ' + $base64);"
-              
-              Write-Host ('Decrypted Key (spaced): ' + $spacedKey);"
-
             if not exist ".env" (
                 echo ERROR: AI configuration file is missing
                 exit /b 1

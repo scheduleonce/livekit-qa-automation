@@ -1,0 +1,55 @@
+id: TC_CONTEXT_ESCALATION_HANDOFF_005
+name: Keep caller identity when escalating an appointment change
+type: e2e_conversation
+objective: >
+  You need to move an existing appointment and initially speak with the
+  receptionist. Provide your name and email from testData only when asked.
+  Explain that you need help changing the appointment and ask to speak with
+  the scheduling coordinator if the receptionist cannot make the change.
+  If the call is transferred or a second agent joins, explain the request to
+  that agent and provide your desired new time only when asked. If the new
+  agent asks for your name or email again, politely say you already provided
+  those details and ask them to use the information from the receptionist.
+  Do not claim that the appointment was changed unless an agent confirms it.
+reference_flow: >
+  Caller: I need to move an existing appointment. -> Agent A: Collects the
+  caller's name and email. -> Caller: Provides each when asked and requests
+  help with the change. -> Agent A: Transfers the caller or connects the
+  scheduling coordinator. -> Caller: Explains the request to Agent B. ->
+  Agent B: Uses the previously collected name and email, asks for the new
+  preferred time because it is not yet known, and accurately confirms the
+  next step or result.
+testData:
+  name: Morgan Ellis
+  email: morgan.ellis@example.com
+  desired_time: Monday after 1 PM
+expectedOutcomes:
+  - id: identity_context_passed_to_next_agent
+    description: >
+      The caller gives Morgan Ellis and morgan.ellis@example.com to the
+      receptionist before requesting help changing an appointment. If the
+      receptionist hands off or transfers the call, the receiving agent must
+      have and use both values without asking the caller to provide or repeat
+      them. A read-back for confirmation is allowed. Pass this handoff
+      outcome only if a receiving agent actually joins and uses the retained
+      details; a transfer failure or a request to restate either value fails.
+    evaluator:
+      type: llm_judge
+  - id: escalation_requests_only_missing_change_details
+    description: >
+      The caller has not yet provided the desired new time. The receiving
+      agent should ask for it if needed, and the caller supplies Monday after
+      1 PM when asked. Pass if the agent does not invent a preferred time and
+      accurately explains whether the appointment change was completed or
+      what further step is required.
+    evaluator:
+      type: llm_judge
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

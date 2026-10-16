@@ -1,0 +1,54 @@
+id: TC_CONTEXT_BOOKING_KB_RESUME_001
+name: Keep collected booking details through a knowledge-base interruption
+type: e2e_conversation
+objective: >
+  You want to book a meeting. Answer the receptionist's questions using the
+  matching values in testData, but provide each value only when asked. After
+  you have given your name and email, when the receptionist asks for your
+  preferred date or time, pause the booking and ask the office-hours question
+  from testData instead. After the receptionist answers, thank them and say
+  you would like to continue booking. Give the preferred date when asked.
+  If asked again for your name or email, politely say you already provided it
+  and ask the receptionist to use that information. Do not invent a booking
+  confirmation.
+reference_flow: >
+  Caller: I would like to book a meeting. -> Agent: Asks for name and email
+  over the course of the booking. -> Caller: Provides each when asked. ->
+  Agent: Asks for a preferred date or time. -> Caller: Before answering,
+  asks about office hours. -> Agent: Answers the question. -> Caller: Thanks
+  the agent and resumes booking. -> Agent: Uses the name and email already
+  collected, asks for any still-missing booking details, and proceeds.
+testData:
+  name: Priya Nair
+  email: priya.nair@example.com
+  preferred_time: Wednesday afternoon
+  kb_question: What are your office hours?
+expectedOutcomes:
+  - id: booking_identity_retained_after_kb
+    description: >
+      The caller provides the name Priya Nair and email
+      priya.nair@example.com in response to the receptionist's questions.
+      After the office-hours interruption, the receptionist must retain and
+      use both values without asking the caller to provide or repeat either
+      one. A read-back for confirmation is allowed, but a request to restate
+      a value is not. The caller's preferred time has not yet been provided
+      when booking resumes, so asking for it is appropriate.
+    evaluator:
+      type: llm_judge
+  - id: booking_resumes_and_missing_time_requested
+    description: >
+      The receptionist answers the office-hours question and resumes the
+      existing booking rather than restarting it. The caller provides
+      Wednesday afternoon when asked. Pass if the receptionist uses it, and
+      does not invent the caller's preferred time before it is provided.
+    evaluator:
+      type: llm_judge
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

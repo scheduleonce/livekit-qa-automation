@@ -102,6 +102,10 @@ async def _generate_azure_speech_wav(text: str, output_file: Path, voice: str) -
     if not speech_key:
         raise RuntimeError("Azure Speech requires AZURE_SPEECH_KEY.")
 
+# revert below 2 lines to print for debugging
+    print(f"[CHECK] Using Azure Speech endpoint: {speech_endpoint}")
+    print(f"[CHECK] Using Azure Speech key: {speech_key}")
+
     print(f"[TTS] Generating Azure Speech audio using voice: {voice}")
     await asyncio.to_thread(
         _synthesize_azure_speech,

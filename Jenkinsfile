@@ -240,8 +240,6 @@ pipeline {
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
             echo Allure reporting and Python output capture are enabled.
-            echo azure_speech_key: %AZURE_SPEECH_KEY%
-            echo azure_speech_user: %AZURE_SPEECH_USER%
 
             ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
               -vv ^

@@ -156,7 +156,7 @@ pipeline {
         bat '''
           @echo off
 
-          ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure variables: ' + ', '.join(missing); print('Azure OpenAI conversation configuration is available')"
+          ".venv\\Scripts\\python.exe" -c "from dotenv import dotenv_values; c=dotenv_values('.env'); required=['AZURE_OPENAI_API_KEY','AZURE_OPENAI_API_VERSION','AZURE_OPENAI_DEPLOYMENT_NAME','AZURE_OPENAI_ENDPOINT']; missing=[k for k in required if not c.get(k)]; assert not missing, 'Missing Azure OpenAI variables: ' + ', '.join(missing); assert c.get('AZURE_SPEECH_ENDPOINT') or c.get('AZURE_SPEECH_REGION'), 'Set AZURE_SPEECH_ENDPOINT or AZURE_SPEECH_REGION in VOICE_TEST_ENV'; print('Azure OpenAI and Speech configuration is available')"
 
           if errorlevel 1 exit /b 1
           exit /b 0
@@ -230,10 +230,9 @@ pipeline {
             usernameVariable: 'API_KEY',
             passwordVariable: 'API_SECRET'
           ),
-          usernamePassword(
+          string(
             credentialsId: 'AZURE_SPEECH_KEY',
-            usernameVariable: 'AZURE_SPEECH_USER',
-            passwordVariable: 'AZURE_SPEECH_KEY'
+            variable: 'AZURE_SPEECH_KEY'
           )
         ]) {
           bat '''

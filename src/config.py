@@ -27,14 +27,20 @@ def _read_json(path: Path) -> Dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Config JSON not found at: {path}")
     with path.open("r", encoding="utf-8") as fh:
-        return json.load(fh)
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"Config JSON must contain an object at its root: {path}")
+    return data
 
 
 def _read_yaml(path: Path) -> Dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"YAML config not found at: {path}")
     with path.open("r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
+        data = yaml.safe_load(fh) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"YAML config must contain an object at its root: {path}")
+    return data
 
 
 def resolve_credentials(
@@ -56,6 +62,11 @@ def resolve_credentials(
     target_env = (env or get_target_environment()).strip()
     config = _read_json(json_path) if json_path.exists() else {}
     env_cfg = config.get(target_env, {})
+    if not isinstance(env_cfg, dict):
+        raise ValueError(
+            f"Configuration for environment '{target_env}' in {json_path} "
+            "must be an object"
+        )
 
     livekit_url = os.getenv("LIVEKIT_URL") or os.getenv("QA_LIVEKIT_URL")
     api_key = os.getenv("API_KEY") or os.getenv("QA_API_KEY")
@@ -93,17 +104,38 @@ def resolve_credentials(
         return livekit_url, api_key, api_secret, bot_id
 
     bot_list = env_cfg.get("BOT_ID", [])
+    if not isinstance(bot_list, list):
+        raise ValueError(
+            f"BOT_ID for environment '{target_env}' in {json_path} must be a list"
+        )
+
     yaml_data = _read_yaml(yaml_path)
     environments = yaml_data.get("environments") or {}
+    if not isinstance(environments, dict):
+        raise ValueError(f"'environments' in {yaml_path} must be an object")
     if target_env not in environments:
         raise ValueError(f"Environment '{target_env}' not defined in {yaml_path}")
-    target_bot_id = str(environments[target_env].get("target_bot_id", ""))
+    environment_config = environments[target_env]
+    if not isinstance(environment_config, dict):
+        raise ValueError(
+            f"Environment '{target_env}' in {yaml_path} must be an object"
+        )
+    target_bot_id = str(environment_config.get("target_bot_id", ""))
     if not target_bot_id:
         raise ValueError(
             f"No target_bot_id configured for environment '{target_env}' in {yaml_path}"
         )
 
+    mapped_bot_id = os.getenv(f"BOT_ID_{target_bot_id}")
+    if mapped_bot_id:
+        return livekit_url, api_key, api_secret, mapped_bot_id
+
     for entry in bot_list:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"Each BOT_ID entry for environment '{target_env}' in "
+                f"{json_path} must be an object"
+            )
         if str(entry.get("id")) == target_bot_id:
             bot_value = entry.get("value")
             if not bot_value:

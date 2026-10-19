@@ -60,6 +60,20 @@ def test_local_json_credentials_and_bot_mapping_are_fallback(monkeypatch, tmp_pa
     )
 
 
+def test_per_id_bot_environment_override(monkeypatch, tmp_path):
+    json_path, yaml_path = _write_local_config(tmp_path)
+    for name in ("LIVEKIT_URL", "API_KEY", "API_SECRET", "BOT_ID"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("BOT_ID_1", "jenkins-scenario-bot")
+
+    assert resolve_credentials("App3", json_path, yaml_path) == (
+        "wss://json.example",
+        "json-key",
+        "json-secret",
+        "jenkins-scenario-bot",
+    )
+
+
 def test_partial_environment_credentials_fail_fast(monkeypatch, tmp_path):
     json_path, yaml_path = _write_local_config(tmp_path)
     monkeypatch.setenv("LIVEKIT_URL", "wss://jenkins.example")

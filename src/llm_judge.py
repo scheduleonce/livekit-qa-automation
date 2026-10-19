@@ -7,14 +7,8 @@ from typing import Any, Dict, List, Union
 
 from openai import AzureOpenAI
 
-DEFAULT_JUDGE_MODEL = os.environ.get(
-    "AZURE_OPENAI_DEPLOYMENT_NAME",
-    os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
-)
-DEFAULT_OPENAI_API_VERSION = os.environ.get(
-    "AZURE_OPENAI_API_VERSION",
-    os.environ.get("OPENAI_API_VERSION", "2024-02-15-preview"),
-)
+DEFAULT_JUDGE_MODEL = "gpt-4o"
+DEFAULT_OPENAI_API_VERSION = "2024-02-15-preview"
 
 JUDGE_SYSTEM_PROMPT = (
     "You are a conversation evaluation judge. "
@@ -28,16 +22,17 @@ JUDGE_SYSTEM_PROMPT = (
 def _get_azure_openai_client() -> AzureOpenAI:
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-    api_version = DEFAULT_OPENAI_API_VERSION
+    model = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", DEFAULT_JUDGE_MODEL)
+    api_version = os.environ.get("AZURE_OPENAI_API_VERSION", DEFAULT_OPENAI_API_VERSION)
     logging.info(
         "Initializing Azure OpenAI client for LLM judge: endpoint=%s model=%s api_version=%s",
         endpoint,
-        DEFAULT_JUDGE_MODEL,
+        model,
         api_version,
     )
 
     print(
-        f"LLM judge Azure config: endpoint={endpoint}, model={DEFAULT_JUDGE_MODEL}, api_version={api_version}, api_key_set={bool(api_key)}"
+        f"LLM judge Azure config: endpoint={endpoint}, model={model}, api_version={api_version}, api_key_set={bool(api_key)}"
     )
     if not endpoint or not api_key:
         logging.warning(
@@ -173,18 +168,19 @@ def judge_conversation(
     ]
 
     try:
+        model = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", DEFAULT_JUDGE_MODEL)
         client = _get_azure_openai_client()
         logging.info(
             "Sending LLM judge request: endpoint=%s model=%s messages=%d",
             os.environ.get("AZURE_OPENAI_ENDPOINT"),
-            DEFAULT_JUDGE_MODEL,
+            model,
             len(messages),
         )
         print(
-            f"Sending LLM judge request: endpoint={os.environ.get('AZURE_OPENAI_ENDPOINT')} model={DEFAULT_JUDGE_MODEL} messages={len(messages)}"
+            f"Sending LLM judge request: endpoint={os.environ.get('AZURE_OPENAI_ENDPOINT')} model={model} messages={len(messages)}"
         )
         response = client.chat.completions.create(
-            model=DEFAULT_JUDGE_MODEL,
+            model=model,
             messages=messages,
             temperature=0.0,
             max_tokens=500,

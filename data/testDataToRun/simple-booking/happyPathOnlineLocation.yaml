@@ -52,6 +52,11 @@ expectedOutcomes:
   - id: llm_judge
     description: >
       Judge the full conversation end-to-end based on the following strict criteria:
+
+      **CRITICAL EVALUATION RULES FOR DATES & TAGS:**
+      - SSML Tag Handling: Completely ignore system SSML tags (like <say-as interpret-as="date"> or <say-as interpret-as="time">) when reading the transcript. Evaluate only the core value inside the tags.
+      - Semantic Date Equivalency: Evaluate dates based on their meaning, not exact string matching. A natural language date discussed by the user (e.g., "October 16th", "Next Friday", "Tomorrow") must be considered a match to a structured backend format (e.g., "YYYY-MM-DD") as long as the month and day logically align.
+      - Year Agnosticism: System confirmations will often output a full ISO date including the current year (e.g., "2026-10-16", "2024-05-02"). If the backend confirms a year that was not explicitly spoken during the negotiation, YOU MUST ACCEPT IT as correct. Do not flag the addition of a year as a hallucination or inconsistency.
       
       1. Intent & Preferences: 
          - Did the agent correctly identify the intent to schedule a meeting?

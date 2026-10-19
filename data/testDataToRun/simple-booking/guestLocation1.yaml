@@ -10,6 +10,12 @@ objective: >
   If the agent asks for a date, use your preferred_date exactly as written.
   If the agent asks if you have a budget or fee preference, provide your budget exactly as written.
 
+  RELATIVE DATE HANDLING (CRITICAL):
+  - Your preferred_time can be a relative phrase ("tomorrow afternoon", "next Monday"). 
+  - You MUST be aware of the current date when driving this conversation. Calculate the actual calendar date that corresponds to relative phrases.
+  - If the agent offers a specific calendar date (e.g., "October 17th") that matches your relative request, treat it as a PERFECT MATCH. 
+#  - Simply accept the time naturally (e.g., "Yes, that works perfectly"). Do NOT say "If tomorrow isn't available..." because the agent is literally offering you tomorrow.
+
 # 2. The Golden Path (Sample Conversation for reference)
 reference_flow: >
   Agent: How can I help? -> Caller: I want to book an in-person meeting tomorrow. -> Agent: I can help with that, but the host is only accepting phone meetings right now. -> Caller: What if we do next week? Can we do a Zoom or Teams call then? -> Agent: I apologize, but only phone meetings are available regardless of the date. -> Caller: Fine, a phone call is okay for tomorrow afternoon. -> Agent: Email? -> Caller: Provides email -> Agent: Confirmed.

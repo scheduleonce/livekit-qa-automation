@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 TARGET_SAMPLE_RATE = 48000
 FRAME_DURATION_MS = 20
 AZURE_SPEECH_WEBSOCKET_PATH = "/tts/cognitiveservices/websocket/v1"
+AZURE_SPEECH_ENDPOINT = "dev-speeck-service.cognitiveservices.azure.com"
 
 
 # ============================================================================
@@ -91,11 +92,19 @@ def _synthesize_azure_speech(
 
 async def _generate_azure_speech_wav(text: str, output_file: Path, voice: str) -> None:
     """Generate 48kHz WAV audio using Azure Speech SDK offloaded to an async thread."""
-    speech_key = os.getenv("AZURE_SPEECH_KEY", "").strip()
-    speech_endpoint = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
+    speech_key = os.environ.get("AZURE_SPEECH_KEY")
+    #speech_endpoint = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
+    speech_endpoint = AZURE_SPEECH_ENDPOINT
 
-    if not speech_key or not speech_endpoint:
-        raise RuntimeError("Azure Speech requires AZURE_SPEECH_KEY and AZURE_SPEECH_ENDPOINT.")
+    if not speech_endpoint:
+        raise RuntimeError("Azure Speech requires AZURE_SPEECH_ENDPOINT.")
+
+    if not speech_key:
+        raise RuntimeError("Azure Speech requires AZURE_SPEECH_KEY.")
+
+# revert below 2 lines to print for debugging
+    print(f"[CHECK] Using Azure Speech endpoint: {speech_endpoint}")
+    print(f"[CHECK] Using Azure Speech key: {speech_key}")
 
     print(f"[TTS] Generating Azure Speech audio using voice: {voice}")
     await asyncio.to_thread(

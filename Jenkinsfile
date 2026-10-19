@@ -16,6 +16,11 @@ pipeline {
       defaultValue: '1',
       description: 'Number of times to run each selected test'
     )
+    string(
+      name: 'SCENARIO_GROUP',
+      defaultValue: '',
+      description: 'Optional scenario folder/group under data/testDataToRun; blank runs all scenarios'
+    )
   }
 
   environment {
@@ -210,6 +215,13 @@ pipeline {
             error('TEST_REPEAT_COUNT must be a positive integer.')
           }
           env.TEST_REPEAT_COUNT = repeatCount
+
+          def scenarioGroup = params.SCENARIO_GROUP?.trim()
+          if (scenarioGroup && !(scenarioGroup ==~ /^[A-Za-z0-9_-]+$/)) {
+            error('SCENARIO_GROUP may contain only letters, numbers, hyphens, and underscores.')
+          }
+          env.SCENARIO_GROUP = scenarioGroup ?: ''
+          env.SCENARIO_GROUP_ARGS = scenarioGroup ? "--scenario-group ${scenarioGroup}" : ''
         }
 
         withCredentials([
@@ -234,11 +246,17 @@ pipeline {
 
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
+            if "%SCENARIO_GROUP_ARGS%"=="" (
+              echo Scenario group: all
+            ) else (
+              echo Scenario group: %SCENARIO_GROUP%
+            )
             echo Allure reporting and Python output capture are enabled.
 
             ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
               -vv ^
               --count=%TEST_REPEAT_COUNT% ^
+              %SCENARIO_GROUP_ARGS% ^
               --capture=tee-sys ^
               --log-level=INFO ^
               --junitxml=reports/junit.xml ^

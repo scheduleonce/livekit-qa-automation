@@ -92,8 +92,6 @@ $env:APP_ENV = 'App3'
 
 For local development, copy `.env.example` to `.env`. The loader reads `.env` without overriding values already supplied by the shell or Jenkins.
 
-For Jenkins, store `AZURE_SPEECH_KEY` as a **Secret text** credential with that credential ID. `VOICE_TEST_ENV` must also define either `AZURE_SPEECH_REGION` (recommended for a regional Speech resource) or `AZURE_SPEECH_ENDPOINT` (for a custom Speech endpoint). The key must belong to the configured region or endpoint. Jenkins validates that one of these settings is present before running tests; the key is bound only during the test stage and is not written to `.env`.
-
 ### 2. Configure LiveKit credentials and bot id
 
 Credential resolution is ordered as follows:
@@ -101,7 +99,7 @@ Credential resolution is ordered as follows:
 1. `LIVEKIT_URL`, `API_KEY`, and `API_SECRET` environment variables.
 2. The matching environment in `data/livekit_bot_config.json` for local fallback.
 
-If any environment credential is set, all three must be set; partial configuration fails fast. `BOT_ID` may be supplied as an environment variable, otherwise the scenario YAML `target_bot_id` is mapped through the JSON `BOT_ID` list. For a bot ID absent from JSON, a per-ID override such as `BOT_ID_10` may be supplied via `.env` or Jenkins `VOICE_TEST_ENV`.
+If any environment credential is set, all three must be set; partial configuration fails fast. `BOT_ID` may be supplied as an environment variable, otherwise the scenario YAML `target_bot_id` is mapped through the JSON `BOT_ID` list.
 
 The JSON file contains environment-specific credential and bot mappings for local fallback. Do not commit real credentials. The existing credentials in any previously committed copy should be rotated and replaced with local `.env` values or Jenkins credentials.
 

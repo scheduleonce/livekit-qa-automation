@@ -318,13 +318,15 @@ pipeline {
       )
 
       catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-        if (fileExists('reports/junit.xml')) {
-          junit(
-            testResults: 'reports/junit.xml',
-            allowEmptyResults: false
-          )
-        } else {
-          echo 'No JUnit report was generated; tests did not reach execution.'
+        script {
+          if (fileExists('reports/junit.xml')) {
+            junit(
+              testResults: 'reports/junit.xml',
+              allowEmptyResults: false
+            )
+          } else {
+            echo 'No JUnit report was generated; tests did not reach execution.'
+          }
         }
       }
 

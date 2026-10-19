@@ -23,32 +23,17 @@ logger = logging.getLogger(__name__)
 # Constants
 TARGET_SAMPLE_RATE = 48000
 FRAME_DURATION_MS = 20
-AZURE_SPEECH_WEBSOCKET_PATH = "/tts/cognitiveservices/websocket/v1"
-AZURE_SPEECH_ENDPOINT = "dev-speeck-service.cognitiveservices.azure.com"
+
+# Default Endpoint (Ensures proper https:// schema for SDK)
+AZURE_SPEECH_ENDPOINT = os.getenv(
+    "AZURE_SPEECH_ENDPOINT",
+    "https://dev-speeck-service.cognitiveservices.azure.com/"
+).strip()
 
 
 # ============================================================================
 # Provider 1: Azure Speech SDK
 # ============================================================================
-
-def _build_azure_speech_websocket_endpoint(speech_endpoint: str) -> str:
-    """Format and normalize the Azure Speech WebSocket endpoint URL."""
-    endpoint = speech_endpoint.strip().rstrip("/")
-    if not endpoint:
-        raise ValueError("AZURE_SPEECH_ENDPOINT cannot be empty.")
-
-    if endpoint.startswith("https://"):
-        endpoint = "wss://" + endpoint[len("https://"):]
-    elif endpoint.startswith("http://"):
-        endpoint = "ws://" + endpoint[len("http://"):]
-    elif not endpoint.startswith(("wss://", "ws://")):
-        endpoint = f"wss://{endpoint}"
-
-    if not endpoint.endswith(AZURE_SPEECH_WEBSOCKET_PATH):
-        endpoint = f"{endpoint}{AZURE_SPEECH_WEBSOCKET_PATH}"
-
-    return endpoint
-
 
 def _synthesize_azure_speech(
     text: str,
@@ -57,8 +42,18 @@ def _synthesize_azure_speech(
     speech_endpoint: str,
     voice: str,
 ) -> None:
-    """Synchronous worker for Azure Speech SDK synthesis."""
-    endpoint = _build_azure_speech_websocket_endpoint(speech_endpoint)
+    """Synchronous worker for Azure Speech SDK synthesis using official SpeechConfig."""
+    
+    # 1. Clean endpoint format (Ensure https:// and no trailing websocket paths)
+    endpoint = speech_endpoint.strip()
+    if not endpoint.startswith(("https://", "http://")):
+        endpoint = f"https://{endpoint}"
+
+    if "/tts/" in endpoint:
+        endpoint = endpoint.split("/tts/")[0]
+    endpoint = endpoint.rstrip("/")
+
+    # 2. Pass clean HTTPS endpoint to Azure SpeechConfig
     speech_config = speechsdk.SpeechConfig(
         subscription=speech_key,
         endpoint=endpoint,
@@ -74,6 +69,7 @@ def _synthesize_azure_speech(
         speech_config=speech_config,
         audio_config=audio_config,
     )
+    
     result = speech_synthesizer.speak_text_async(text).get()
 
     if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
@@ -92,21 +88,19 @@ def _synthesize_azure_speech(
 
 async def _generate_azure_speech_wav(text: str, output_file: Path, voice: str) -> None:
     """Generate 48kHz WAV audio using Azure Speech SDK offloaded to an async thread."""
-    speech_key = os.environ.get("AZURE_SPEECH_KEY")
-    #speech_endpoint = os.getenv("AZURE_SPEECH_ENDPOINT", "").strip()
+    speech_key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
     speech_endpoint = AZURE_SPEECH_ENDPOINT
 
-    if not speech_endpoint:
-        raise RuntimeError("Azure Speech requires AZURE_SPEECH_ENDPOINT.")
-
     if not speech_key:
-        raise RuntimeError("Azure Speech requires AZURE_SPEECH_KEY.")
+        raise RuntimeError("Azure Speech requires AZURE_SPEECH_KEY environment variable.")
 
-# revert below 2 lines to print for debugging
+    if not speech_endpoint:
+        raise RuntimeError("Azure Speech requires AZURE_SPEECH_ENDPOINT environment variable.")
+
     print(f"[CHECK] Using Azure Speech endpoint: {speech_endpoint}")
-    print(f"[CHECK] Using Azure Speech key: {speech_key}")
-
+    print(f"[CHECK] Using Azure Speech key length: {len(speech_key)}")
     print(f"[TTS] Generating Azure Speech audio using voice: {voice}")
+
     await asyncio.to_thread(
         _synthesize_azure_speech,
         text,

@@ -102,6 +102,10 @@ pipeline {
           ".venv\\Scripts\\python.exe" --version
           if errorlevel 1 exit /b 1
 
+          echo Verifying Azure Speech SDK...
+          ".venv\\Scripts\\python.exe" -c "import azure.cognitiveservices.speech as speechsdk; print('Azure Speech SDK version:', speechsdk.__version__)"
+          if errorlevel 1 exit /b 1
+
           echo Verifying Edge TTS...
           ".venv\\Scripts\\python.exe" -c "import edge_tts; import imageio_ffmpeg; print('Edge TTS and bundled FFmpeg are available')"
           if errorlevel 1 exit /b 1
@@ -249,13 +253,27 @@ pipeline {
                 if errorlevel 1 exit /b 1
             )
 
+            echo Checking Azure Speech credential binding...
+            ".venv\\Scripts\\python.exe" -c "import os; from dotenv import dotenv_values; c=dotenv_values('.env'); k=os.getenv('AZURE_SPEECH_KEY','').strip(); f=(c.get('AZURE_SPEECH_KEY') or '').strip(); print('[CHECK] Jenkins Speech key present:', bool(k)); print('[CHECK] Jenkins Speech key length:', len(k)); print('[CHECK] .env Speech key present:', bool(f)); print('[CHECK] Jenkins Speech key matches .env key:', k == f if f else 'not applicable'); assert k, 'AZURE_SPEECH_KEY credential password is empty'; assert k != 'AZURE_SPEECH_KEY', 'AZURE_SPEECH_KEY contains the credential username instead of the resource key'; assert ':' not in k, 'AZURE_SPEECH_KEY appears to contain a combined username:password value'"
+
+            if errorlevel 1 exit /b 1
+
+            echo Checking effective Azure Speech endpoint...
+            ".venv\\Scripts\\python.exe" -c "import os; from dotenv import dotenv_values, load_dotenv; from urllib.parse import urlsplit; c=dotenv_values('.env'); source='process environment' if 'AZURE_SPEECH_ENDPOINT' in os.environ else ('VOICE_TEST_ENV .env file' if c.get('AZURE_SPEECH_ENDPOINT') is not None else 'src/tts.py default'); load_dotenv('.env', override=False); e=os.getenv('AZURE_SPEECH_ENDPOINT','https://dev-speeck-service.cognitiveservices.azure.com/').strip(); u=urlsplit(e if '://' in e else 'https://' + e); print('[CHECK] Speech endpoint source:', source); print('[CHECK] Speech endpoint scheme:', u.scheme); print('[CHECK] Speech endpoint hostname:', u.hostname); print('[CHECK] Speech endpoint path:', u.path or '/'); assert e, 'AZURE_SPEECH_ENDPOINT is empty'; assert u.scheme in ('http','https') and u.hostname, 'AZURE_SPEECH_ENDPOINT must be an HTTP/HTTPS URL or hostname for the current src/tts.py implementation'"
+
+            if errorlevel 1 exit /b 1
+
+            echo Azure Speech configuration checks completed.
+            echo These checks do not authenticate the key with Azure.
             echo Running LiveKit tests for environment: %APP_ENV%
             echo Voice provider: %VOICE_PROVIDER%
+
             if "%SCENARIO_GROUP_ARGS%"=="" (
               echo Scenario group: all
             ) else (
               echo Scenario group: %SCENARIO_GROUP%
             )
+
             echo Allure reporting and Python output capture are enabled.
 
             ".venv\\Scripts\\python.exe" -m pytest tests -m "not config" ^
@@ -318,7 +336,6 @@ pipeline {
           allowEmptyResults: false
         )
       }
-
     }
   }
 }

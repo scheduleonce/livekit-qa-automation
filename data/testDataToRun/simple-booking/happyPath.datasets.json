@@ -1,0 +1,64 @@
+[
+  {
+    "id": "TC_ONLINE_001",
+    "name": "James Peter",
+    "email": "james.peter@example.com",
+    "city": "New Delhi",
+    "phone_number": "9847635355",
+    "preferred_time": "Tomorrow at the earliest time possible",
+    "preferred_meeting_option": "online",
+    "preferred_duration": "30 minutes",
+    "company_name": "Vedanta",
+    "budget": "thirty thousand dollars"
+  },
+  {
+    "id": "TC_ONLINE_002",
+    "name": "Alex Morgan",
+    "email": "alex.morgan@example.com",
+    "city": "Bengaluru",
+    "phone_number": "9876543210",
+    "preferred_time": "Next Tuesday afternoon",
+    "preferred_meeting_option": "online",
+    "preferred_duration": "15 minutes",
+    "company_name": "Northstar Labs",
+    "budget": "twenty-five thousand dollars"
+  },
+  {
+    "id": "TC_PHONE_003",
+    "name": "Sam Lee",
+    "email": "sam.lee@example.com",
+    "city": "Mumbai",
+    "phone_number": "9123456780",
+    "preferred_time": "Thursday morning",
+    "preferred_meeting_option": "phone call",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_INPERSON_004",
+    "name": "Henry George",
+    "email": "henry.george@example.com",
+    "city": "Mumbai",
+    "phone_number": "9123456780",
+    "preferred_time": "I am free between 1 PM and 4 PM on Tuesday.",
+    "preferred_meeting_option": "in-person",
+    "preferred_duration": "1 hour",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_GUESTLOCATION_005",
+    "name": "James Peter",
+    "email": "james.peter@example.com",
+    "city": "Mumbai",
+    "phone_number": "9123456780",
+    "preferred_time": "Can you find something at 9:00 AM on Monday?",
+    "preferred_meeting_option": "in-person",
+    "address": "123 Main Street, Mumbai",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  }
+  
+]

@@ -107,8 +107,10 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
         try:
             agent_text = agent_text.strip()
             if not agent_text:
+                logging.info("DEBUG: Ignoring empty final transcription")
                 return
 
+            logging.info(f"DEBUG: Processing agent turn: '{agent_text}'")
             agent_turn_count += 1
             if agent_turn_count > MAX_AGENT_TURNS:
                 raise RuntimeError(f"Conversation exceeded limit of {MAX_AGENT_TURNS} turns.")
@@ -122,6 +124,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
             if _is_hold_prompt(agent_text):
                 consecutive_hold_prompts += 1
+                logging.info(f"DEBUG: Detected hold prompt. Consecutive count: {consecutive_hold_prompts}")
                 first_word_received = False
                 if consecutive_hold_prompts >= MAX_CONSECUTIVE_HOLD_PROMPTS:
                     raise RuntimeError(f"Agent repeated hold prompts {consecutive_hold_prompts} times.")
@@ -135,22 +138,29 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             if "[END_CALL]" in reply:
                 should_end_call = True
                 reply = reply.replace("[END_CALL]", "").strip()
+                logging.info("DEBUG: Agent indicated call end in reply. Preparing to terminate conversation.")
 
             if reply:
                 if shutting_down or room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                    logging.info("DEBUG: Skipping reply generation due to shutdown or disconnected room.")
                     return
 
+                logging.info(f"DEBUG: Generated reply: '{reply}'")
                 wav_file = REPLY_AUDIO_DIR / f"dynamic_reply_{uuid.uuid4().hex}.wav"
                 await asyncio.wait_for(
                     generate_wav_from_text(reply, str(wav_file)), timeout=TURN_TIMEOUT_SECONDS
                 )
+                logging.info(f"DEBUG: Generated WAV file at {wav_file}")
 
                 if shutting_down or room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                    logging.info("DEBUG: Skipping audio playback due to shutdown or disconnected room.")
                     return
 
                 await asyncio.wait_for(
                     play_audio_to_agent(room, str(wav_file)), timeout=TURN_TIMEOUT_SECONDS
                 )
+
+                logging.info("DEBUG: Audio playback to agent completed successfully.")
 
                 last_caller_speech_end = time.time()
                 first_word_received = False
@@ -236,6 +246,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
                 agent_speech_stopped.set()
 
         if shutting_down:
+            logging.info("DEBUG: Ignoring transcription due to shutdown.")
             return
 
         for segment in segments:
@@ -246,6 +257,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             if not first_word_received:
                 latency_sec = time.time() - last_caller_speech_end
                 first_word_received = True
+                logging.info(f"[Latency]: First word received. Agent latency: {latency_sec:.2f} seconds")
                 current_agent_latency = latency_sec
 
             if not segment.final:
@@ -263,7 +275,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             pending_transcription_task = asyncio.create_task(flush_pending_transcription())
 
     scenario_id = str(scenario_data.get("id", "unknown")).replace(" ", "_")
-    room_name = f"qa-test-room-{scenario_id}-{uuid.uuid4().hex[:6]}"
+    room_name = f"qa-test-room-{uuid.uuid4().hex[:6]}"
 
     logging.warning("LiveKit room name: %s", room_name)
 

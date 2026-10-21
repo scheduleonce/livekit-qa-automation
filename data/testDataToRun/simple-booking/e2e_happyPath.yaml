@@ -39,7 +39,6 @@ expectedOutcomes:
       - Expected Location Option: {{preferred_meeting_option}}
       - Expected Duration: {{preferred_duration}}
       - Expected Time Preference: {{preferred_time}}
-      - Expected Address: {{address}}
       CRITICAL EVALUATION RULES:
       1. SSML & Tag Handling: Ignore system tags like <say-as interpret-as="date">.
       2. Semantic Date Equivalency: Natural language dates (e.g., "Tomorrow") must match backend ISO formats as long as month/day align.

@@ -1,0 +1,91 @@
+id: E2E_SimpleBooking
+name: "Basic successful appointment booking - Generic E2E"
+type: "e2e_conversation"
+category_code: "BSC" # Maps directly to your QA Plan
+
+# 1. SIMULATED CALLER PERSONA (Objective fed to the caller bot)
+objective: >
+  You want to book a meeting.
+  You are polite but you MUST provide your details exactly as they are written in your testData using words instead of symbols. 
+  Do not offer your email, phone, website, or budget until explicitly asked. 
+  
+  PREFERENCES:
+  - Preferred Time: {{preferred_time}}
+  - Preferred Location/Option: {{preferred_meeting_option}}
+  - Preferred Duration: {{preferred_duration}}
+  - Budget: {{budget}}
+  - Phone Number: {{phone_number}}
+
+  # 2. REFERENCE FLOW
+reference_flow: >
+  Agent: How can I help? -> Caller: Book a demo/meeting. -> Agent: Timezone or City? -> Caller: {{city}} -> Agent: When? -> Caller: {{preferred_time}} -> Agent: Email? -> Caller: {{email}} -> Agent: Phone? -> Caller: {{phone_number}} -> Agent: Confirmed.
+
+# 3. EXTERNAL DATASET LINK
+datasets:
+  file: happyPath.datasets.json
+
+# 4. GENERIC LLM JUDGE EVALUATION
+expectedOutcomes:
+  - id: llm_judge_evaluator
+    evaluator:
+      type: llm_judge
+      model: "gpt-4o" # or your framework's default LLM judge model
+    description: >
+      Evaluate the entire end-to-end conversation against the target dataset variables:
+      
+      TARGET DATASET FOR THIS RUN:
+      - Expected Name: {{name}}
+      - Expected Phone: {{phone_number}}
+      - Expected Location Option: {{preferred_meeting_option}}
+      - Expected Duration: {{preferred_duration}}
+      - Expected Time Preference: {{preferred_time}}
+      - Expected Address: {{address}}
+      CRITICAL EVALUATION RULES:
+      1. SSML & Tag Handling: Ignore system tags like <say-as interpret-as="date">.
+      2. Semantic Date Equivalency: Natural language dates (e.g., "Tomorrow") must match backend ISO formats as long as month/day align.
+      3. Year Agnosticism: If the agent confirms a current/future year (e.g., "2026") not explicitly spoken by the caller, consider it CORRECT.
+      
+      EVALUATION CHECKLIST:
+      1. Intent & Qualification: Did the agent correctly capture the intent, preferred duration ({{preferred_duration}}), and location ({{preferred_meeting_option}})?
+      2. Slot Negotiation: Did the final confirmed meeting time strictly match what was negotiated without hallucination?
+      3. Contact Info Capture:
+         - First & Last Name captured/confirmed correctly?
+         - Phone ({{phone_number}}) captured and confirmed correctly?
+      4. Task Completion:
+         - Did the conversation successfully conclude with a confirmed booking?
+         - Format the final conclusion summary as: "({{preferred_meeting_option}} meeting was successfully confirmed for [Day/Date] at [Time])."
+      5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
+         - Hallucinating facts, policies, locations, or business rules.
+         - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
+         - Ignoring user inputs or abruptly dropping context.
+         - Getting stuck in repetitive loops or outputting raw system text/code.
+
+    # Schema forcing the LLM Judge to produce structured output for easy CSV/Sheet reporting
+    output_schema:
+      type: object
+      properties:
+        pass:
+          type: boolean
+        score:
+          type: number
+          description: "Confidence score between 0.0 and 1.0"
+        failure_reason:
+          type: string
+          description: "Detailed description of why the scenario failed, if applicable"
+        extracted_entities:
+          type: object
+          properties:
+            confirmed_date_time: { type: string }
+            confirmed_email: { type: string }
+            confirmed_phone: { type: string }
+      required: ["pass", "score", "failure_reason"]
+
+environments:
+  App3:
+    target_bot_id: "6"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Prod:
+    target_bot_id: "3"

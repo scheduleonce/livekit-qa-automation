@@ -48,14 +48,13 @@
     "budget": "forty thousand dollars"
   },
   {
-    "id": "TC_GUESTLOCATION_005",
+    "id": "TC_ONLINE_005",
     "name": "James Peter",
     "email": "james.peter@example.com",
     "city": "Mumbai",
     "phone_number": "9123456780",
     "preferred_time": "Can you find something at 9:00 AM on Monday?",
-    "preferred_meeting_option": "in-person",
-    "address": "123 Main Street, Mumbai",
+    "preferred_meeting_option": "online",
     "preferred_duration": "30 minutes",
     "company_name": "BrightPath",
     "budget": "forty thousand dollars"

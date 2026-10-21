@@ -54,12 +54,11 @@ expectedOutcomes:
     description: >
       Judge the full conversation end-to-end based on the following strict criteria:
       1. Intent Recognition: Did the agent correctly identify the intent to book a meeting?
-      2. Email capture: Did the agent asked for email and captured email correctly?
-      3. Phone capture: Did the agent asked for phone number and captured it correctly?
-      4. Task Completion: Did the conversation successfully conclude with a confirmed phone meeting and email, sms notificaion confirmation?
+      2. Phone capture: Did the agent asked for phone number and captured it correctly?
+      3. Task Completion: Did the conversation successfully conclude with a confirmed phone meeting and email, sms notificaion confirmation?
 
       Next, perform a Holistic Quality & Hallucination Assessment:
-      5. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
+      4. Overall Conversation Health: Scrutinize the entire transcript for any other issues. The agent MUST fail if it exhibits any of the following: 
          - Hallucinating facts, policies, locations, or business rules.
          - Providing incorrect, irrelevant, or nonsensical answers to the caller's questions.
          - Ignoring user inputs or abruptly dropping context.

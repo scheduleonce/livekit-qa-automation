@@ -1,0 +1,52 @@
+id: TC_CONTEXT_BOOKING_TO_MESSAGE_003
+name: Reuse booking contact details when switching to leave a message
+type: e2e_conversation
+objective: >
+  You initially want to schedule a meeting. Provide your name and email from
+  testData only when the receptionist asks. When the receptionist next asks
+  for booking timing, say that your plans changed and you would like to leave
+  a message instead. Do not give the message content until the receptionist
+  asks what you would like the message to say. Then provide the exact content
+  from testData. If asked again for your name or email, politely say you
+  already provided it and ask the receptionist to use it. Do not claim the
+  message was delivered unless the receptionist confirms that.
+reference_flow: >
+  Caller: Requests a meeting. -> Agent: Collects name and email. -> Caller:
+  Provides each when asked. -> Agent: Asks for booking timing. -> Caller:
+  Switches to leaving a message. -> Agent: Asks for the message content. ->
+  Caller: Provides the message. -> Agent: Uses the already-collected caller
+  details and accurately confirms what happened to the message.
+testData:
+  name: Alex Morgan
+  email: alex.morgan@example.com
+  message_content: Please ask the billing team to call me about the invoice I received yesterday.
+expectedOutcomes:
+  - id: contact_details_retained_for_message
+    description: >
+      The caller provides Alex Morgan and alex.morgan@example.com in response
+      to booking questions, then switches to leaving a message. Pass only if
+      the receptionist carries these values into message-taking and does not
+      ask the caller to provide or repeat them. A short read-back for
+      confirmation is allowed; a request to restate is not.
+    evaluator:
+      type: llm_judge
+  - id: message_content_requested_and_recorded
+    description: >
+      The message content has not been supplied when the caller switches
+      flows. The receptionist should ask what the message is, then accurately
+      capture "Please ask the billing team to call me about the invoice I
+      received yesterday." Pass if the receptionist does not invent missing
+      content or falsely claim that the message was delivered.
+    evaluator:
+      type: llm_judge
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"
+tags:
+  - extraction

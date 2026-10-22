@@ -78,6 +78,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
     turn_queue: asyncio.Queue[tuple[str, float | None]] = asyncio.Queue()
     
     turn_error: Exception | None = None
+    turn_error_phase: str | None = None
     turn_processor_task: asyncio.Task | None = None
     pending_transcription_task: asyncio.Task | None = None
     
@@ -99,7 +100,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
     async def handle_turn(agent_text: str, agent_latency: float | None):
         nonlocal current_agent_latency, last_caller_speech_end, first_word_received
-        nonlocal turn_error, agent_turn_count, consecutive_hold_prompts
+        nonlocal turn_error, turn_error_phase, agent_turn_count, consecutive_hold_prompts
 
         wav_file: Path | None = None
         should_end_call = False
@@ -170,7 +171,8 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
         except Exception as exc:
             turn_error = exc
-            logging.error(f"ERROR in handle_turn: {exc}", exc_info=True)
+            turn_error_phase = "handling agent turn"
+            logging.exception("ERROR in handle_turn")
             test_finished.set()
 
         finally:
@@ -191,8 +193,10 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             except asyncio.TimeoutError:
                 continue
             except Exception as exc:
-                nonlocal turn_error
+                nonlocal turn_error, turn_error_phase
                 turn_error = exc
+                turn_error_phase = "processing turn queue"
+                logging.exception("ERROR in process_turn_queue")
                 test_finished.set()
                 break
 
@@ -304,15 +308,19 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
     turn_processor_task = asyncio.create_task(process_turn_queue())
 
+    wait_phase = f"waiting for first agent transcription ({WELCOME_TIMEOUT_SECONDS}s timeout)"
     try:
         await asyncio.wait_for(
             first_transcription_received.wait(), timeout=WELCOME_TIMEOUT_SECONDS
         )
+        wait_phase = f"waiting for conversation to finish ({CONVERSATION_TIMEOUT_SECONDS}s timeout)"
         await asyncio.wait_for(
             test_finished.wait(), timeout=CONVERSATION_TIMEOUT_SECONDS
         )
     except asyncio.TimeoutError as exc:
         turn_error = exc
+        turn_error_phase = wait_phase
+        logging.exception("LiveKit conversation timed out while %s", wait_phase)
     finally:
         shutting_down = True
 
@@ -328,6 +336,10 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
     if turn_error is not None:
         await _bounded_cleanup(caller.close(), "simulated caller client close")
-        raise RuntimeError(f"LiveKit conversation error: {turn_error}") from turn_error
+        phase = f" while {turn_error_phase}" if turn_error_phase else ""
+        raise RuntimeError(
+            f"LiveKit conversation error{phase}: "
+            f"{type(turn_error).__name__}: {turn_error!r}"
+        ) from turn_error
 
     return caller.conversation_history, caller

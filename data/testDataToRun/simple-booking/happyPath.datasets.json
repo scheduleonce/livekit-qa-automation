@@ -29,7 +29,7 @@
     "email": "sam.lee@example.com",
     "city": "Mumbai",
     "phone_number": "9123456780",
-    "preferred_time": "Thursday morning",
+    "preferred_time": "Give me the earliest slot you have on Thursday",
     "preferred_meeting_option": "phone call",
     "preferred_duration": "30 minutes",
     "company_name": "BrightPath",
@@ -48,16 +48,75 @@
     "budget": "forty thousand dollars"
   },
   {
-    "id": "TC_ONLINE_005",
+    "id": "TC_PHONE_005",
     "name": "James Peter",
     "email": "james.peter@example.com",
     "city": "Mumbai",
     "phone_number": "8886590745",
     "preferred_time": "Can you find something at 9:00 AM on Monday?",
+    "preferred_meeting_option": "phone call",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_INPERSON_006",
+    "name": "James Peter",
+    "email": "james.peter@example.com",
+    "city": "Mumbai",
+    "phone_number": "7877678890",
+    "preferred_time": "I prefer 11:15 AM, but any time after that is okay.",
+    "preferred_meeting_option": "in-person",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_ONLINE_007",
+    "name": "James Peter",
+    "email": "james.peter@example.com",
+    "city": "Mumbai",
+    "phone_number": "8977886756",
+    "preferred_time": "Can you find something at 3:45 PM on Monday",
     "preferred_meeting_option": "online",
     "preferred_duration": "30 minutes",
     "company_name": "BrightPath",
     "budget": "forty thousand dollars"
-  }
-  
+  },
+  {
+    "id": "TC_ANY_008",
+    "name": "John Smith",
+    "email": "john.smith@example.com",
+    "city": "Mumbai",
+    "phone_number": "8977886080",
+    "preferred_time": "Any time in the morning",
+    "preferred_meeting_option": "any",
+    "preferred_duration": "15 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_ONLINE_009",
+    "name": "Jessica Williams",
+    "email": "jessica.williams@example.com",
+    "city": "Mumbai",
+    "phone_number": "8977886756",
+    "preferred_time": "Book me for tomorrow",
+    "preferred_meeting_option": "online",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  },
+  {
+    "id": "TC_ONLINE_010",
+    "name": "Lisa Peter",
+    "email": "lisa.peter@example.com",
+    "city": "Mumbai",
+    "phone_number": "8977886756",
+    "preferred_time": "I am free after lunch on Wednesday",
+    "preferred_meeting_option": "online",
+    "preferred_duration": "30 minutes",
+    "company_name": "BrightPath",
+    "budget": "forty thousand dollars"
+  } 
 ]

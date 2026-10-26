@@ -1,0 +1,56 @@
+id: TC_DISCONNECT_CALL_REQUEST_001
+name: Verify agent terminates and disconnects call upon explicit user request
+type: e2e_conversation
+
+tags:
+  - callTermination
+  - landingAgent
+
+objective: >
+  Start a normal conversation with the landing receptionist agent. Once the agent
+  greets you or offers assistance, state explicitly that you want to disconnect or
+  end the call (e.g., "Please disconnect the call", "I want to hang up now", or
+  "That is all, please end this call"). Observe whether the agent acknowledges your
+  request politely and initiates call termination/disconnection on its own rather
+  than continuing to prompt for further actions or keeping the session alive.
+
+reference_flow: >
+  Agent: Hello, how can I help you today? ->
+  Caller: I don't need any assistance, please disconnect the call now. ->
+  Agent: Acknowledges courteously (e.g., "Understood, have a great day!") and
+  terminates/disconnects the call automatically.
+
+testData:
+  disconnect_phrases:
+    - "Please disconnect the call."
+    - "I would like to hang up now."
+    - "Can you please end this call?"
+
+expectedOutcomes:
+  - id: agent_acknowledges_disconnect_request
+    description: >
+      When the caller explicitly asks to disconnect or end the call, the agent
+      must acknowledge the intent politely without ignoring the request, looping,
+      or persisting with unprompted sales/booking flows.
+    evaluator:
+      type: llm_judge
+
+  - id: agent_disconnects_call_on_its_own
+    description: >
+      Fail if the agent asks clarifying questions to keep the user on the line,
+      re-prompts with "Is there anything else I can help you with?" without ending
+      the session, attempts to continue an unrequested flow, or fails to terminate
+      the call. Pass only if the agent gracefully concludes and executes the
+      disconnection action/terminates the call.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

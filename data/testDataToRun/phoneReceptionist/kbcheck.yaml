@@ -1,0 +1,65 @@
+id: TC_KB_TOUR_COMPANY_INFORMATION_001
+name: Answer tour company knowledge-base questions and end the call
+type: e2e_conversation
+
+tags:
+  - knowledgeBase1
+
+objective: >
+  You are interested in learning about the your company. Start by asking what
+  the company does. Then ask each question from testData one at a time, waiting
+  for the agent's answer before asking the next. After all questions have been
+  answered, thank the agent and end the call naturally. Do not try to book a
+  tour.
+
+reference_flow: >
+  Caller: What does your company do? -> Agent: Answers from its available
+  information or says it cannot confirm. -> Caller: Asks the next question
+  from testData. -> Agent: Answers or says it cannot confirm. -> Caller:
+  Repeats this pattern until all seven questions have been asked and addressed.
+  -> Caller: Thanks, that's all I needed. Goodbye. -> Agent: Responds
+  courteously and ends the conversation.
+
+testData:
+  kb_questions:
+    - Who won the nobel peace award?
+    - What does your company do?
+  closing: Thanks, that's all I needed. Goodbye.
+
+expectedOutcomes:
+  - id: all_knowledge_questions_addressed
+    description: >
+      Confirm the caller asks what the your company does and all seven
+      questions listed in testData, one at a time. The agent should respond to
+      each question before the caller moves on, using available knowledge or
+      clearly saying when it cannot confirm. Fail if questions are skipped,
+      ignored, or answered with unrelated information.
+    evaluator:
+      type: llm_judge
+  - id: answers_are_relevant_and_grounded
+    description: >
+      Judge whether the agent's answers address the caller's questions and are
+      appropriately grounded in its available information. The agent must not
+      invent destinations, tour types, durations, inclusions, prices, or
+      cancellation policies. If information is unavailable, it should say so
+      clearly rather than guessing.
+    evaluator:
+      type: llm_judge
+  - id: call_ends_naturally_without_booking
+    description: >
+      After all questions are addressed, the caller thanks the agent and ends
+      the call. The agent should respond courteously and allow the conversation
+      to conclude. It must not start a tour booking or claim that a tour was
+      booked.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "2"

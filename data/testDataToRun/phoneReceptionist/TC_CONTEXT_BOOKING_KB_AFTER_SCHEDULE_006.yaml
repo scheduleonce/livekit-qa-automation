@@ -1,0 +1,62 @@
+id: TC_CONTEXT_BOOKING_KB_AFTER_SCHEDULE_006
+name: Do not schedule a second meeting after answering a knowledge question
+type: e2e_conversation
+objective: >
+  You want to schedule a meeting. Provide the matching values from testData
+  only when the receptionist asks, and continue until the receptionist
+  confirms that the meeting has been scheduled. After the confirmation, ask
+  the knowledge-base question from testData. Once the receptionist answers,
+  if it asks whether you want to continue scheduling, say, "Let's continue."
+  If it does not ask, say, "Let's continue with the meeting." Do not provide
+  new booking details or ask to change the meeting that was already confirmed.
+reference_flow: >
+  Caller: I would like to schedule a meeting. -> Agent: Collects the required
+  booking details. -> Caller: Provides each requested value from testData. ->
+  Agent: Confirms that the meeting has been scheduled. -> Caller: What is
+  OnceHub? -> Agent: Answers the knowledge-base question. -> Agent: Asks
+  whether the caller wants to continue scheduling. -> Caller: Let's continue.
+  -> Agent: Explains that the meeting is already scheduled and it cannot
+  schedule another meeting in this conversation; it does not restart booking
+  or collect details for a second meeting.
+testData:
+  name: Priya
+  email: priya.nair@example.com
+  phone: 8057736560
+  preferred_time: Wednesday afternoon
+  kb_question: What is OnceHub?
+expectedOutcomes:
+  - id: initial_meeting_is_scheduled
+    description: >
+      The caller provides the requested booking details from testData, and the
+      agent clearly confirms that the initial meeting has been scheduled.
+      Do not pass if the agent only gathers details, offers availability, or
+      implies a booking without confirming it.
+    evaluator:
+      type: llm_judge
+  - id: knowledge_question_answered
+    description: >
+      After the initial booking confirmation, the caller asks "What are the different plans available for OnceHub?" The agent responds relevantly based on its available
+      knowledge, or clearly says it cannot confirm the answer. It must not
+      ignore the question or invent unsupported specifics.
+    evaluator:
+      type: llm_judge
+  - id: second_meeting_not_scheduled
+    description: >
+      After the knowledge-base answer, when the caller says "Let's continue,"
+      the agent recognizes that the meeting has already been scheduled and
+      clearly says it cannot schedule another meeting in this conversation.
+      It must not restart booking, request details for a second meeting, or
+      claim that another meeting was booked.
+    evaluator:
+      type: llm_judge
+tags:
+  - knowledgeBaseA
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

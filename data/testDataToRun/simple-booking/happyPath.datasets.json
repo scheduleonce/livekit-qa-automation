@@ -49,8 +49,8 @@
   },
   {
     "id": "TC_PHONE_005",
-    "name": "James Peter",
-    "email": "james.peter@example.com",
+    "name": "Mark John",
+    "email": "mark.john@example.com",
     "city": "Mumbai",
     "phone_number": "8886590745",
     "preferred_time": "Can you find something at 9:00 AM on Monday?",
@@ -61,8 +61,8 @@
   },
   {
     "id": "TC_INPERSON_006",
-    "name": "James Peter",
-    "email": "james.peter@example.com",
+    "name": "David Smith",
+    "email": "david.smith@example.com",
     "city": "Mumbai",
     "phone_number": "7877678890",
     "preferred_time": "I prefer 11:15 AM, but any time after that is okay.",
@@ -73,8 +73,8 @@
   },
   {
     "id": "TC_ONLINE_007",
-    "name": "James Peter",
-    "email": "james.peter@example.com",
+    "name": "Maria Peter",
+    "email": "maria.peter@example.com",
     "city": "Mumbai",
     "phone_number": "8977886756",
     "preferred_time": "Can you find something at 3:45 PM on Monday",

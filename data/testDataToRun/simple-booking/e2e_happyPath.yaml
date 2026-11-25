@@ -62,13 +62,12 @@ expectedOutcomes:
          - Did the agent capture the requested meeting location/option ({{preferred_meeting_option}})?
 
       2. Slot Negotiation & Constraint Adherence (STRICT - MUST FAIL IF VIOLATED):
-         - Time-of-Day / Period Adherence: When a user specifies a time preference (e.g., "morning", "afternoon", "evening", or a specific hour), the agent MUST NOT offer a conflicting time slot (e.g., offering 7 PM for a "morning" request) without explicitly notifying the user that the requested time-of-day/period is completely unavailable for that date.
-         - No Illogical Modality Pivoting / False Offers: The agent MUST NOT suggest switching meeting modalities (e.g., from Online to Phone or In-person) under the pretense of finding different availability, if the alternative modality provides the exact same unavailable/rejected time slot.
-           Example: If the caller rejects "7 PM" for an online meeting, the agent must not offer "7 PM" for a phone or in-person meeting as an alternative unless availability truly differs.
-         - Proactive Alternative Offering: If the caller's preferred time period is unavailable on the chosen date, the agent must either:
-           a) State that morning/requested slots are unavailable for that date and suggest the closest available date that actually has morning/requested openings, OR
-           b) Clearly state that only evening/alternative slots exist on that date before offering it.
-         - Repetitive Offering of Rejected Slots: Once a caller rejects a specific time slot (e.g., "7 PM is too late"), the agent MUST NOT offer that exact same time slot again unless the caller explicitly re-requests it.
+         - Track the caller's latest stated date, time, duration, and meeting-option constraints throughout the conversation. Treat a clear later clarification or change of preference as an update, while retaining earlier requirements that the caller has not changed.
+         - Assess each offered or confirmed slot against the constraints that apply at that point in the conversation. Distinguish the kind of constraint at issue (such as date, time window, duration, or meeting option); evidence that one kind is unavailable does not by itself establish that another is unavailable.
+         - When the agent cannot meet a current constraint, assess whether it communicates the relevant limitation and offers an appropriate next step as required by the conversation. Accept clear semantic equivalents; do not require particular wording.
+         - Do not treat an alternative as accepted, a preference as changed, or a booking as confirmed unless the caller's words support that conclusion. A caller asking about an alternative authorizes discussion of it, but is not by itself agreement to book it.
+         - Check whether the agent respects rejected options and avoids unsupported claims or misleading alternatives, while accounting for any later caller request that reopens or changes those options.
+         - Mark a violation only when the transcript provides evidence that the agent failed a stated requirement. Any failure rationale MUST cite or accurately paraphrase the relevant turns and explain the violated requirement; consider the full conversation and do not claim information was omitted when it is present.
 
       3. Contact Information Capture & Accuracy:
          - Name: Did the agent ask for and accurately capture/confirm the caller's name ({{name}})?
@@ -166,7 +165,7 @@ expectedOutcomes:
 
 environments:
   App3:
-    target_bot_id: "6"
+    target_bot_id: "1"
   App2:
     target_bot_id: "6"
   Orion:

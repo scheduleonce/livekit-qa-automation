@@ -1,0 +1,132 @@
+
+id: TC_RETIREMENT_CONSULTATION_BOOKING_001
+name: Book an introductory retirement-planning consultation
+
+type: e2e_conversation
+
+objective: >
+  Verify that a prospective new client can book an introductory
+  retirement-planning consultation through the phone receptionist.
+  The caller prefers an afternoon next week and is willing to consider
+  suitable meeting locations or formats offered by the receptionist.
+
+reference_flow: >
+  Act as Alex Morgan, a prospective client seeking retirement-planning
+  advice. Start by asking whether an introductory consultation can be
+  booked.
+
+  Follow the receptionist's actual conversation and scheduling process.
+  Ask what meeting locations or formats are available. Consider suitable
+  options offered by the receptionist.
+
+  Express a preference for an afternoon next week. If the receptionist
+  offers a suitable available time, accept it and provide the required
+  booking details when asked.
+
+  Provide the name Alex Morgan and email alex@example.com only when
+  requested. If asked for a phone number, explain that you cannot
+  provide one yet. Do not invent a phone number or other personal
+  information.
+
+  If SMS consent is requested, first ask what messages will be sent.
+  Do not give automatic consent. If the receptionist explains that SMS
+  is for a relevant booking-related purpose, agree only if a permitted
+  phone number is available. Since no phone number is provided in this
+  scenario, decline SMS and continue the booking if possible.
+
+  Do not invent calendar availability, meeting details, or completed
+  actions. Accept only times actually offered by the receptionist.
+  Do not assume that a spoken booking confirmation proves the meeting
+  was successfully created.
+
+  Keep responses friendly, conversational, and concise. Ask one
+  question at a time. If the receptionist cannot complete the booking,
+  explore a suitable alternative within the scenario constraints.
+  End politely when the booking is completed or no useful next step
+  remains.
+
+testData:
+  caller:
+    name: Alex Morgan
+    email: alex@example.com
+    phone: null
+
+  booking:
+    meeting_type: introductory consultation
+    topic: retirement planning
+    client_type: new client
+    preferred_day: next week
+    preferred_time: afternoon
+    location: ask receptionist
+    meeting_format: ask receptionist
+
+  actions:
+    - book_meeting
+
+  restrictions:
+    - Do not invent a phone number.
+    - Do not provide caller details unless requested.
+    - Ask about SMS message purpose before deciding.
+    - Do not automatically consent to SMS.
+    - Use only availability offered by the receptionist.
+    - Do not claim a booking succeeded without confirmation from the scheduling process.
+
+expectedOutcomes:
+  - id: EO_001
+    description: >
+      The receptionist understands that the caller is a new client
+      seeking an introductory retirement-planning consultation.
+
+  - id: EO_002
+    description: >
+      The receptionist supports the meeting-booking request and
+      proceeds through the actual scheduling process.
+
+  - id: EO_003
+    description: >
+      The receptionist asks about or offers suitable meeting
+      locations or formats, and the caller considers available options.
+
+  - id: EO_004
+    description: >
+      The receptionist handles the caller's afternoon preference
+      for next week and offers actual available appointment times.
+      The caller accepts a suitable offered time when possible.
+
+  - id: EO_005
+    description: >
+      The caller provides Alex Morgan and alex@example.com when
+      requested, without volunteering unrelated personal details.
+
+  - id: EO_006
+    description: >
+      The caller does not invent or provide a phone number.
+      If a phone number is required, the receptionist explains
+      whether the booking can proceed without it.
+
+  - id: EO_007
+    description: >
+      If SMS consent is discussed, the receptionist explains the
+      purpose of the messages before requesting consent.
+      The caller does not automatically consent and declines
+      when a permitted phone number is unavailable.
+
+  - id: EO_008
+    description: >
+      The receptionist does not claim that a booking was created
+      unless the scheduling process actually completes.
+      If booking is blocked, the receptionist explains the
+      limitation and offers a useful alternative where possible.
+
+evaluator:
+  type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Quantum:
+    target_bot_id: "3"

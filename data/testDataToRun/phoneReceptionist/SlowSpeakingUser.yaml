@@ -1,0 +1,276 @@
+
+id: TC_BOOKING_SLOW_SPEECH_TRAVEL_TIMEZONE_001
+
+name: Slow Speaking Visitor - Travel, Timezone Change and Booking
+
+type: e2e_conversation
+
+objective: >
+  Validate that the voice agent can handle an elderly visitor who speaks
+  extremely slowly in American English, stretches words, pauses frequently,
+  and remembers important information gradually.
+
+  The visitor initially asks about appointment availability.
+  During the conversation, the visitor explains that they are travelling
+  and relocating to New York.
+
+  The visitor requests a timezone change but does not know the timezone name.
+  They eventually remember that their destination is New York City.
+
+  The agent should identify the correct timezone using the city provided,
+  update the visitor's timezone if supported, and continue the conversation
+  without unnecessarily asking the visitor to provide a timezone abbreviation.
+
+  The visitor then unexpectedly decides to schedule an appointment.
+  The agent should collect the required booking details, check availability,
+  and successfully schedule the meeting.
+
+  Validate that the agent understands slow speech, handles pauses and
+  corrections, maintains conversational context, and confirms the appointment
+  using the correct local timezone.
+
+reference_flow: >
+  IMPORTANT VISITOR SPEECH STYLE:
+
+  Act as an elderly American visitor.
+  Speak extremely slowly, with a gentle, slightly shaky elderly voice.
+  Stretch words and syllables.
+  Use long pauses between phrases.
+  Occasionally hesitate and remember information after a pause.
+  Use natural American English pronunciation.
+
+  Do not speak normally or quickly.
+  Do not deliver the entire sentence in one breath.
+  Speak one small phrase at a time.
+
+  Example speaking style:
+  "Wellllll... hello there..."
+  "I was... wondering... if you have a tiiiime..."
+  "I'm... traaaavelling... and moving... to New York..."
+
+  CONVERSATION FLOW:
+
+  1. Start by asking about appointment availability.
+
+     Visitor:
+     "Wellllll... hello there...
+     I was wondering...
+     do you have any tiiiime...
+     for an appointment?"
+
+     Wait for the agent's response.
+
+  2. Explain that you are travelling.
+
+     Visitor:
+     "Oh... one more thing...
+     I'm travelling...
+     and I'm moving...
+     to a different place."
+
+     Wait for the agent to respond.
+
+  3. Ask to change the timezone.
+
+     Visitor:
+     "I think...
+     I need to change...
+     my tiiiime zone...
+     because I'm moving."
+
+     If the agent asks which timezone:
+
+     Visitor:
+     "Oh dear...
+     I don't know...
+     what it's called."
+
+     Do not immediately provide the timezone name.
+     Let the agent ask for the destination city.
+
+  4. 
+  4. Initially provide only the country abbreviation, then remember the city.
+
+     Visitor:
+     "I'm moving...
+     to the U... A..."
+
+     Wait for the agent to respond.
+
+     If the agent asks where in the United States:
+
+     Visitor:
+     "Oh dear...
+     I can't remember...
+     just a moment..."
+
+     Pause before responding.
+
+     Visitor:
+     "Ohhhh...
+     now I remember...
+     New York!"
+
+     If the agent asks for confirmation:
+
+     Visitor:
+     "Yessss...
+     New York...
+     in the United States."
+
+     Do not say New York before the agent asks for more location
+     information or the visitor remembers it.
+
+     Do not provide EST, EDT, UTC-5, or America/New_York.
+     The agent should determine the timezone from the city.
+
+  5. Confirm the timezone change.
+
+     If the agent explains that New York uses Eastern Time:
+
+     Visitor:
+     "Oh... that's right...
+     please change it...
+     to New York time."
+
+     If the agent asks for confirmation before updating:
+
+     Visitor:
+     "Yessss...
+     please go ahead."
+
+     The agent should use America/New_York as the timezone identifier
+     if the application supports IANA timezone values.
+
+  6. Suddenly remember that you need an appointment.
+
+     After the timezone discussion, unexpectedly say:
+
+     Visitor:
+     "Oh my goodness...
+     I almost forgot...
+     I need to make...
+     an appointment!"
+
+     Wait for the agent to respond.
+
+  7. Provide booking details slowly, only when asked.
+
+     Visitor:
+     "My name is...
+     Eleanor...
+     Brooks."
+
+     Email:
+     "It's...
+     eleanor dot brooks...
+     at example dot com."
+
+     Meeting type:
+     "I'd like...
+     an online meeting."
+
+     Appointment date:
+     "Could you make it...
+     December third...
+     twenty twenty-six?"
+
+     Appointment time:
+     "How about...
+     ten thirty...
+     in the morning...
+     New York time?"
+
+     If the agent offers a different available time,
+     accept the first reasonable alternative.
+
+  8. Confirm the booking.
+
+     Visitor:
+     "Yes...
+     that sounds...
+     just wonderful."
+
+     Wait for the agent to provide the final confirmation.
+
+     Do not end the conversation before the agent confirms
+     the appointment date, time, and timezone.
+
+testData:
+  visitor:
+    firstName: Eleanor
+    lastName: Brooks
+    email: eleanor.brooks@example.com
+    speakingStyle: very_slow
+    language: en-US
+    accent: American English
+    persona: elderly_visitor
+
+  timezone:
+    destinationCity: New York
+    destinationState: NY
+    destinationCountry: United States
+    expectedTimezone: America/New_York
+
+  booking:
+    meetingType: online
+    appointmentDate: "2026-12-03"
+    preferredTime: "10:30 AM"
+    timezone: America/New_York
+
+expectedOutcomes:
+  - id: EXPECT_SLOW_SPEECH_UNDERSTANDING
+    description: >
+      Agent understands the visitor's extremely slow American English
+      speech, stretched words, pauses, and hesitations without repeatedly
+      asking the visitor to repeat the same information.
+    evaluator: llm
+
+  - id: EXPECT_APPOINTMENT_AVAILABILITY
+    description: >
+      Agent responds appropriately to the visitor's initial question
+      about appointment availability.
+    evaluator: llm
+
+  - id: EXPECT_TIMEZONE_CITY_RESOLUTION
+    description: >
+      Agent asks for or understands the destination city and identifies
+      New York City's timezone without requiring the visitor to know
+      the timezone abbreviation or UTC offset.
+    evaluator: llm
+
+  - id: EXPECT_TIMEZONE_UPDATE
+    description: >
+      Agent confirms and updates the visitor's timezone to
+      America/New_York when timezone modification is supported.
+    evaluator: llm
+
+  - id: EXPECT_CONTEXT_RETENTION
+    description: >
+      Agent retains the visitor's timezone and travel context
+      when the visitor unexpectedly switches to appointment booking.
+    evaluator: llm
+
+  - id: EXPECT_APPOINTMENT_BOOKING
+    description: >
+      Agent collects the required booking details, checks availability,
+      and successfully schedules the appointment or offers an available
+      alternative if the preferred slot is unavailable.
+    evaluator: llm
+
+  - id: EXPECT_TIMEZONE_CORRECT_CONFIRMATION
+    description: >
+      Agent confirms the appointment date and time in New York local time.
+      The timezone must be handled using America/New_York so daylight
+      saving time is applied correctly for the appointment date.
+    evaluator: llm
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Quantum:
+    target_bot_id: "3"

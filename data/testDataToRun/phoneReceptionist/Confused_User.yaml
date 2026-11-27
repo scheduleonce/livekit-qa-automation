@@ -1,0 +1,275 @@
+id: TC_BOOKING_MESSAGE_SWITCH_001
+name: Flexible booking conversation with customer confusion and message fallback
+type: e2e_conversation
+category_code: BSC
+
+objective: >
+  You are a potential customer contacting the booking hub because you want
+  to arrange an appointment.
+
+  You should behave like a natural human caller. Do not follow a rigid script.
+  Express the same booking intent using different words and phrases throughout
+  the conversation. The receptionist should understand that you want to book
+  an appointment even when you change your wording.
+
+  CALLER BEHAVIOUR:
+
+  1. INITIAL BOOKING INTENT:
+     Start by expressing that you want an appointment. You can use phrases
+     such as:
+     - "I'd like to book an appointment."
+     - "Can I get something scheduled?"
+     - "I was hoping to arrange a meeting."
+     - "Is there a way to get an appointment?"
+     - "I'd like to get on your calendar."
+     Do not repeat the exact same sentence throughout the conversation.
+
+  2. CONVERSATIONAL VARIATIONS:
+     As the conversation progresses, express the same intent differently.
+     For example:
+     - "Could you find a suitable time for me?"
+     - "When would I be able to come in?"
+     - "Can you fit me in sometime?"
+     - "What's the next available appointment?"
+     The receptionist should understand these as requests related to the
+     original booking intent.
+
+  3. TIME SUGGESTION:
+     When the receptionist suggests an available appointment time, respond
+     naturally. You may ask:
+     - "Is that the only time available?"
+     - "Do you have anything else?"
+     - "I'm not sure whether that works."
+     - "Could you explain what that means?"
+     Do not immediately confirm a booking.
+
+  4. CUSTOMER CONFUSION:
+     At some point, behave like a slightly confused customer.
+     Ask questions such as:
+     - "Sorry, I'm a little confused. What happens next?"
+     - "Do I need to decide right now?"
+     - "I'm not really sure how this works."
+     - "So what exactly do I need to do?"
+     Keep your replies short and natural.
+     Evaluate whether the receptionist patiently explains the next steps
+     instead of repeating the same information or becoming confused.
+
+  5. CUSTOMER DETAILS:
+     If the receptionist asks for your name, provide:
+     {{name}}
+
+     If the receptionist asks for your email, provide:
+     {{email}}
+
+     Do not volunteer these details before being asked.
+     Provide the details accurately.
+
+  6. CHANGE OF INTENT - LEAVE A MESSAGE:
+     After discussing appointment availability, change your mind.
+     Say naturally:
+     "Actually, let's just leave a message instead."
+
+     Other acceptable variations:
+     - "You know what, can I just leave a message?"
+     - "I think I'll leave a message for the team."
+     - "Rather than booking now, could you pass a message along?"
+     - "Let's not book anything right now. I'd prefer to leave a message."
+
+     Once you request to leave a message:
+     - Do not continue negotiating appointment times.
+     - Do not accept or confirm the previously suggested appointment.
+     - Cooperate with the receptionist's message-taking process.
+     - Provide the message below when requested, or naturally when the
+       receptionist asks what you would like to communicate.
+
+  7. MESSAGE CONTENT:
+     Your message is:
+     {{message}}
+
+     If asked to clarify the message, explain that you would like the team
+     to contact you to discuss arranging an appointment.
+
+  8. FINAL EXPECTATION:
+     Wait for the receptionist to acknowledge and complete the message-taking
+     process.
+     Do not claim that the message has been saved or sent yourself.
+     Do not claim that an appointment has been booked.
+
+  Keep replies short, polite and conversational. Vary your wording naturally.
+  Do not sound like you are reading from a test script.
+
+reference_flow: >
+  Caller: Expresses appointment booking intent using natural language.
+  -> Agent: Understands the intent and gathers information.
+  -> Agent: Suggests available appointment times.
+  -> Caller: Asks questions, expresses uncertainty and acts confused.
+  -> Agent: Explains the process and responds patiently.
+  -> Caller: Provides name and email when requested.
+  -> Caller: Changes preference and requests to leave a message instead.
+  -> Agent: Stops the booking process and handles the message request.
+  -> Caller: Provides message content.
+  -> Agent: Captures and confirms the message submission.
+  -> Conversation ends without an appointment being booked.
+
+testData:
+  name: Alex Morgan
+  email: alex.morgan@example.com
+  message: >
+    Please let the team know that I am interested in scheduling an appointment.
+    I would appreciate a call back to discuss suitable available times.
+
+expectedOutcomes:
+  - id: conversational_intent_and_message_fallback
+    description: >
+      Evaluate the complete conversation.
+
+      The receptionist must understand the caller's appointment booking intent
+      even when expressed using different natural-language phrases.
+
+      The receptionist must correctly suggest available appointment times,
+      handle customer questions and confusion patiently, and capture the
+      caller's name and email accurately when requested.
+
+      When the caller changes their mind and requests to leave a message,
+      the receptionist must recognize the updated intent, stop the booking
+      process, collect the message and confirm its successful submission.
+
+      The receptionist must not falsely confirm an appointment or claim that
+      a message was submitted without successfully completing the message
+      workflow.
+
+    evaluator:
+      type: llm_judge
+      model: gpt-4o
+
+    output_schema:
+      type: object
+      properties:
+        pass:
+          type: boolean
+          description: >
+            True only if all mandatory conversational and message-handling
+            requirements pass.
+
+        overall_conversation_score:
+          type: number
+          description: Score from 0.0 to 1.0.
+
+        functional_checklist:
+          type: object
+          properties:
+            booking_intent_understood:
+              type: boolean
+            paraphrased_intent_understood:
+              type: boolean
+            appointment_time_suggested:
+              type: boolean
+            time_questions_handled_correctly:
+              type: boolean
+            customer_confusion_handled_patiently:
+              type: boolean
+            name_captured_correctly:
+              type: boolean
+            email_captured_correctly:
+              type: boolean
+            message_request_understood:
+              type: boolean
+            booking_process_stopped_after_message_request:
+              type: boolean
+            message_content_captured_correctly:
+              type: boolean
+            message_submission_confirmed:
+              type: boolean
+            no_false_booking_confirmation:
+              type: boolean
+          required:
+            - booking_intent_understood
+            - paraphrased_intent_understood
+            - appointment_time_suggested
+            - time_questions_handled_correctly
+            - customer_confusion_handled_patiently
+            - name_captured_correctly
+            - email_captured_correctly
+            - message_request_understood
+            - booking_process_stopped_after_message_request
+            - message_content_captured_correctly
+            - message_submission_confirmed
+            - no_false_booking_confirmation
+
+        issues_detected:
+          type: array
+          items:
+            type: object
+            properties:
+              defect_type:
+                type: string
+                enum:
+                  - INTENT_MISUNDERSTOOD
+                  - PARAPHRASE_NOT_RECOGNIZED
+                  - INCORRECT_TIME_SUGGESTION
+                  - CUSTOMER_CONFUSION_NOT_HANDLED
+                  - INCORRECT_DETAILS_CAPTURED
+                  - MESSAGE_REQUEST_IGNORED
+                  - BOOKING_CONTINUED_AFTER_MESSAGE_REQUEST
+                  - MESSAGE_CONTENT_LOST
+                  - MESSAGE_NOT_SUBMITTED
+                  - FALSE_BOOKING_CONFIRMATION
+                  - FALSE_MESSAGE_CONFIRMATION
+                  - CONTEXT_LOSS_OR_LOOP
+                  - HALLUCINATION
+              severity:
+                type: string
+                enum:
+                  - CRITICAL
+                  - HIGH
+                  - MEDIUM
+                  - LOW
+              turn_number_or_quote:
+                type: string
+              explanation:
+                type: string
+            required:
+              - defect_type
+              - severity
+              - explanation
+
+        extracted_entities:
+          type: object
+          properties:
+            captured_name:
+              type: string
+            captured_email:
+              type: string
+            suggested_appointment_times:
+              type: array
+              items:
+                type: string
+            final_customer_intent:
+              type: string
+            captured_message:
+              type: string
+            message_submission_status:
+              type: string
+            appointment_booking_status:
+              type: string
+
+        summary_of_findings:
+          type: string
+
+      required:
+        - pass
+        - overall_conversation_score
+        - functional_checklist
+        - issues_detected
+        - extracted_entities
+        - summary_of_findings
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Quantum:
+    target_bot_id: "3"

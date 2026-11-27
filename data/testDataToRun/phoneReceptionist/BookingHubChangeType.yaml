@@ -56,7 +56,7 @@ environments:
   App3:
     target_bot_id: "10"
   App2:
-    target_bot_id: "4"
+    target_bot_id: "6"
   Orion:
     target_bot_id: "2"
   Quantum:

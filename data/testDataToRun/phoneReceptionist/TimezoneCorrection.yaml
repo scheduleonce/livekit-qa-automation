@@ -64,7 +64,7 @@
     App3:
       target_bot_id: "2"
     App2:
-      target_bot_id: "1"
+      target_bot_id: "7"
     Orion:
       target_bot_id: "2"
   

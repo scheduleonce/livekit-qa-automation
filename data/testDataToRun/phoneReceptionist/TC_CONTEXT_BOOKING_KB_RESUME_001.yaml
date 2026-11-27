@@ -12,12 +12,15 @@ objective: >
   and ask the receptionist to use that information. Do not invent a booking
   confirmation.
 reference_flow: >
-  Caller: I would like to book a meeting. -> Agent: Asks for name and email
-  over the course of the booking. -> Caller: Provides each when asked. ->
-  Agent: Asks for a preferred date or time. -> Caller: Before answering,
-  asks about office hours. -> Agent: Answers the question. -> Caller: Thanks
-  the agent and resumes booking. -> Agent: Uses the name and email already
-  collected, asks for any still-missing booking details, and proceeds.
+  Caller: I would like to book a meeting. 
+  Agent: Asks for a preferred date or time. 
+  Caller: Provides each when asked. 
+  Agent: Asks for name and email over the course of the booking. 
+  Caller: Before answering,
+  asks about office hours.  
+  Agent: Answers the question. 
+  Caller: Thanks the agent and resumes booking.
+  Agent: Uses the name and email already collected, asks for any still-missing booking details, and proceeds.
 testData:
   name: Priya Nair
   email: priya.nair@example.com
@@ -47,7 +50,7 @@ environments:
   App3:
     target_bot_id: "2"
   App2:
-    target_bot_id: "1"
+    target_bot_id: "6"
   Orion:
     target_bot_id: "2"
   Quantum:

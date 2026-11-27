@@ -1,0 +1,174 @@
+id: E2E_SimpleBooking
+type: "{{preferred_time}}"
+name: "Basic successful appointment booking - Complete End-to-End Evaluation"
+#type: "e2e_conversation"
+category_code: "BSC"
+
+# 1. SIMULATED CALLER PERSONA (Objective fed to the caller bot)
+objective: >
+  You want to book a meeting.
+  You are polite but you MUST provide your details exactly as they are written in your testData using words instead of symbols. 
+  Do not offer your email, phone, website, or budget until explicitly asked. 
+  
+  PREFERENCES:
+  - Caller Name: {{name}}
+  - Phone Number: {{phone_number}}
+  - Email: {{email}}
+  - Preferred Time / Window: {{preferred_time}}
+  - Preferred Location/Option: {{preferred_meeting_option}}
+  - Preferred Duration: {{preferred_duration}}
+  - Budget: {{budget}}
+
+# 2. REFERENCE FLOW
+reference_flow: >
+  Agent: Greeting -> Caller: Intent & Preferences -> Agent: Negotiation & Detail Gathering -> Caller: Provides details -> Agent: Final Confirmation.
+
+# 3. EXTERNAL DATASET LINK
+datasets:
+  file: happyPath.datasets.json
+
+# 4. COMPREHENSIVE LLM JUDGE EVALUATION
+expectedOutcomes:
+  - id: comprehensive_llm_judge
+    evaluator:
+      type: llm_judge
+      model: "gpt-4o"
+    description: >
+      You are an expert Conversation QA Auditor. Evaluate the entire multi-turn conversation end-to-end against the target dataset variables, standard qualification checkpoints, and conversational quality criteria.
+
+      =========================================
+      TARGET DATASET FOR THIS RUN:
+      =========================================
+      - Expected Name: {{name}}
+      - Expected Phone: {{phone_number}}
+      - Expected Email: {{email}}
+      - Expected Location/Option: {{preferred_meeting_option}}
+      - Expected Duration: {{preferred_duration}}
+      - Expected Time Preference: {{preferred_time}}
+
+      =========================================
+      CRITICAL EVALUATION RULES:
+      =========================================
+      1. SSML & Tag Handling: Ignore system tags like <say-as interpret-as="date">.
+      2. Semantic Date Equivalency: Natural language dates (e.g., "Tomorrow") must match backend ISO formats if month and day logically align.
+      3. Year Agnosticism: If the agent confirms a current/future year (e.g., "2026") not explicitly spoken by the caller, treat it as CORRECT.
+
+      =========================================
+      CORE FUNCTIONAL CHECKLIST (ALL REQUIRED):
+      =========================================
+      1. Intent & Qualification:
+         - Did the agent correctly identify the intent to book a meeting?
+         - Did the agent identify and capture the requested duration ({{preferred_duration}})?
+         - Did the agent capture the requested meeting location/option ({{preferred_meeting_option}})?
+
+      2. Slot Negotiation & Constraint Adherence (STRICT - MUST FAIL IF VIOLATED):
+         - Track the caller's latest stated date, time, duration, and meeting-option constraints throughout the conversation. Treat a clear later clarification or change of preference as an update, while retaining earlier requirements that the caller has not changed.
+         - Assess each offered or confirmed slot against the constraints that apply at that point in the conversation. Distinguish the kind of constraint at issue (such as date, time window, duration, or meeting option); evidence that one kind is unavailable does not by itself establish that another is unavailable.
+         - When the agent cannot meet a current constraint, assess whether it communicates the relevant limitation and offers an appropriate next step as required by the conversation. Accept clear semantic equivalents; do not require particular wording.
+         - Do not treat an alternative as accepted, a preference as changed, or a booking as confirmed unless the caller's words support that conclusion. A caller asking about an alternative authorizes discussion of it, but is not by itself agreement to book it.
+         - Check whether the agent respects rejected options and avoids unsupported claims or misleading alternatives, while accounting for any later caller request that reopens or changes those options.
+         - Mark a violation only when the transcript provides evidence that the agent failed a stated requirement. Any failure rationale MUST cite or accurately paraphrase the relevant turns and explain the violated requirement; consider the full conversation and do not claim information was omitted when it is present.
+
+      3. Contact Information Capture & Accuracy:
+         - Name: Did the agent ask for and accurately capture/confirm the caller's name ({{name}})?
+         - Phone: Did the agent ask for and accurately capture/confirm the phone number ({{phone_number}})?
+         - Email: If asked by the agent, was the email ({{email}}) captured and confirmed accurately without dropping characters? Ignore if the agent did not ask for email.
+
+      4. Task Completion & Format Verification:
+         - Did the conversation conclude successfully with a confirmed meeting?
+         - In the summary, format the result as: "({{preferred_meeting_option}} meeting was successfully confirmed for [Day/Date] at [Time])."
+         - Did the confirmed meeting time strictly match the final negotiated time agreed upon by both parties without hallucinating a different slot?
+
+      5. Overall Conversation Health & Efficiency:
+         - Scrutinize the dialogue for unnecessary friction, repetitive looping, or evasion. 
+         - The agent MUST FAIL if it exhibits:
+           * Unnecessary multi-turn ping-pong caused by failing to honor stated preferences.
+           * Hallucinating facts, policies, locations, or business rules.
+           * Providing incorrect, irrelevant, or nonsensical suggestions to the caller.
+           * Ignoring stated user constraints or abruptly dropping conversational context.
+
+    output_schema:
+      type: object
+      properties:
+        pass:
+          type: boolean
+          description: "True ONLY if all core checklist items pass and no critical/high defects are detected."
+        overall_conversation_score:
+          type: number
+          description: "Score from 0.0 to 1.0 (Deduct for missed details or friction)."
+        functional_checklist:
+          type: object
+          properties:
+            intent_and_duration_captured:
+              type: boolean
+            meeting_option_captured:
+              type: boolean
+            name_captured_correctly:
+              type: boolean
+            phone_captured_correctly:
+              type: boolean
+            email_captured_correctly:
+              type: boolean
+            booking_confirmed:
+              type: boolean
+          required: [
+            "intent_and_duration_captured",
+            "meeting_option_captured",
+            "name_captured_correctly",
+            "phone_captured_correctly",
+            "email_captured_correctly",
+            "booking_confirmed"
+          ]
+        issues_detected:
+          type: array
+          items:
+            type: object
+            properties:
+              defect_type:
+                type: string
+                enum: [
+                  "CONSTRAINT_IGNORED",
+                  "REPETITIVE_OFFERING",
+                  "ILLOGICAL_PIVOT",
+                  "PASSIVE_DISCOVERY",
+                  "UNCOMMUNICATED_UNAVAILABILITY",
+                  "HALLUCINATION",
+                  "CONTEXT_LOSS_OR_LOOP",
+                  "CHECKLIST_FAILURE"
+                ]
+              severity:
+                type: string
+                enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+              turn_number_or_quote:
+                type: string
+              explanation:
+                type: string
+          description: "List of all conversational or functional defects detected."
+        extracted_entities:
+          type: object
+          properties:
+            confirmed_date_time: { type: string }
+            captured_name: { type: string }
+            captured_phone: { type: string }
+            captured_email: { type: string }
+        summary_of_findings:
+          type: string
+          description: "Executive summary explaining the pass/fail determination."
+      required: [
+        "pass",
+        "overall_conversation_score",
+        "functional_checklist",
+        "issues_detected",
+        "extracted_entities",
+        "summary_of_findings"
+      ]
+
+environments:
+  App3:
+    target_bot_id: "6"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "5"
+  Prod:
+    target_bot_id: "3"

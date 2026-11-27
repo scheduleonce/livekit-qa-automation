@@ -7,7 +7,8 @@
       { "id": "1", "value": "AIBOT-A7E3783E08" },
       { "id": "2", "value": "AIBOT-0198E02F80" },
       { "id": "3", "value": "AIBOT-659717D44A" },
-      {"id": "4", "value": "AIBOT-628E82EB72" }
+      {"id": "4", "value": "AIBOT-628E82EB72" },
+      {"id": "5", "value": "AIBOT-D9874E72E2" }
     ]
   },
   "App3": {
@@ -35,7 +36,8 @@
       { "id": "2", "value": "AIBOT-69D8D92446" },
       { "id": "3", "value": "AIBOT-F15A811503" },
       {"id": "4", "value": "AIBOT-9619F87194" },
-      { "id": "5", "value": "AIBOT-94CC7965EF" }
+      { "id": "5", "value": "AIBOT-94CC7965EF" },
+      { "id": "6", "value": "AIBOT-3D24B49CAD" }
     ]
   },
   "Prod": {

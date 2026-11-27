@@ -11,7 +11,7 @@ from livekit import api, rtc
 
 from .config import get_target_environment, resolve_credentials
 from .simulated_user import SimulatedCaller
-from .tts import generate_wav_from_text, play_audio_to_agent
+from .tts import AudioPlaybackSession, generate_wav_from_text
 
 load_dotenv()
 
@@ -59,6 +59,38 @@ async def _bounded_cleanup(awaitable, operation: str) -> None:
         except (asyncio.CancelledError, Exception) as exc:
             logging.warning(f"{operation} cleanup result: {exc}")
 
+async def _wait_for_event_or_finished(
+    event: asyncio.Event,
+    test_finished: asyncio.Event,
+    room: rtc.Room,
+    on_disconnect_cb,
+    timeout: float,
+) -> None:
+    deadline = time.monotonic() + timeout
+    while not event.is_set() and not test_finished.is_set():
+        if room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+            on_disconnect_cb("CONN_DISCONNECTED (detected via state poll)")
+            break
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise asyncio.TimeoutError
+
+        event_task = asyncio.create_task(event.wait())
+        finished_task = asyncio.create_task(test_finished.wait())
+        tasks = (event_task, finished_task)
+        try:
+            await asyncio.wait(
+                tasks,
+                timeout=min(1.0, remaining),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
 async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCaller]:
     source_yaml = scenario_data.get("_source_file")
     yaml_path = Path(source_yaml) if source_yaml else DEFAULT_HAPPY_PATHS_YAML
@@ -70,6 +102,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
     logging.info(f"CONFIG: ENV={target_env}, selected BOT_ID={bot_id}")
 
+    loop = asyncio.get_running_loop()
     room = rtc.Room()
     caller = SimulatedCaller(scenario_data)
 
@@ -78,6 +111,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
     turn_queue: asyncio.Queue[tuple[str, float | None]] = asyncio.Queue()
     
     turn_error: Exception | None = None
+    turn_error_phase: str | None = None
     turn_processor_task: asyncio.Task | None = None
     pending_transcription_task: asyncio.Task | None = None
     
@@ -90,6 +124,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
     shutting_down = False
     room_connected = False
+    audio_playback: AudioPlaybackSession | None = None
 
     last_caller_speech_end = time.time()
     first_word_received = False
@@ -97,9 +132,15 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
     agent_turn_count = 0
     consecutive_hold_prompts = 0
 
+    def _signal_test_finished() -> None:
+        if loop.is_closed():
+            test_finished.set()
+        else:
+            loop.call_soon_threadsafe(test_finished.set)
+
     async def handle_turn(agent_text: str, agent_latency: float | None):
         nonlocal current_agent_latency, last_caller_speech_end, first_word_received
-        nonlocal turn_error, agent_turn_count, consecutive_hold_prompts
+        nonlocal turn_error, turn_error_phase, agent_turn_count, consecutive_hold_prompts
 
         wav_file: Path | None = None
         should_end_call = False
@@ -107,8 +148,10 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
         try:
             agent_text = agent_text.strip()
             if not agent_text:
+                logging.info("DEBUG: Ignoring empty final transcription")
                 return
 
+            logging.info(f"DEBUG: Processing agent turn: '{agent_text}'")
             agent_turn_count += 1
             if agent_turn_count > MAX_AGENT_TURNS:
                 raise RuntimeError(f"Conversation exceeded limit of {MAX_AGENT_TURNS} turns.")
@@ -122,6 +165,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
 
             if _is_hold_prompt(agent_text):
                 consecutive_hold_prompts += 1
+                logging.info(f"DEBUG: Detected hold prompt. Consecutive count: {consecutive_hold_prompts}")
                 first_word_received = False
                 if consecutive_hold_prompts >= MAX_CONSECUTIVE_HOLD_PROMPTS:
                     raise RuntimeError(f"Agent repeated hold prompts {consecutive_hold_prompts} times.")
@@ -135,33 +179,44 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             if "[END_CALL]" in reply:
                 should_end_call = True
                 reply = reply.replace("[END_CALL]", "").strip()
+                logging.info("DEBUG: Agent indicated call end in reply. Preparing to terminate conversation.")
 
             if reply:
                 if shutting_down or room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                    logging.info("DEBUG: Skipping reply generation due to shutdown or disconnected room.")
                     return
 
+                logging.info(f"DEBUG: Generated reply: '{reply}'")
                 wav_file = REPLY_AUDIO_DIR / f"dynamic_reply_{uuid.uuid4().hex}.wav"
                 await asyncio.wait_for(
                     generate_wav_from_text(reply, str(wav_file)), timeout=TURN_TIMEOUT_SECONDS
                 )
+                logging.info(f"DEBUG: Generated WAV file at {wav_file}")
 
                 if shutting_down or room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                    logging.info("DEBUG: Skipping audio playback due to shutdown or disconnected room.")
                     return
 
+                if audio_playback is None:
+                    raise RuntimeError("LiveKit audio playback session is not initialized.")
+
                 await asyncio.wait_for(
-                    play_audio_to_agent(room, str(wav_file)), timeout=TURN_TIMEOUT_SECONDS
+                    audio_playback.play(str(wav_file)), timeout=TURN_TIMEOUT_SECONDS
                 )
+
+                logging.info("DEBUG: Audio playback to agent completed successfully.")
 
                 last_caller_speech_end = time.time()
                 first_word_received = False
 
             if should_end_call:
-                test_finished.set()
+                _signal_test_finished()
 
         except Exception as exc:
             turn_error = exc
-            logging.error(f"ERROR in handle_turn: {exc}", exc_info=True)
-            test_finished.set()
+            turn_error_phase = "handling agent turn"
+            logging.exception("ERROR in handle_turn")
+            _signal_test_finished()
 
         finally:
             if wav_file and wav_file.exists():
@@ -181,9 +236,11 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             except asyncio.TimeoutError:
                 continue
             except Exception as exc:
-                nonlocal turn_error
+                nonlocal turn_error, turn_error_phase
                 turn_error = exc
-                test_finished.set()
+                turn_error_phase = "processing turn queue"
+                logging.exception("ERROR in process_turn_queue")
+                _signal_test_finished()
                 break
 
     async def flush_pending_transcription() -> None:
@@ -220,6 +277,24 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
         else:
             agent_speech_stopped.set()
 
+    @room.on("disconnected")
+    def on_disconnected(reason):
+        nonlocal turn_error, turn_error_phase
+        if shutting_down or test_finished.is_set():
+            return
+
+        logging.error("LiveKit room disconnected unexpectedly: %s", reason)
+        if turn_error is None:
+            turn_error = ConnectionError(
+                f"LiveKit room disconnected unexpectedly: {reason}"
+            )
+            turn_error_phase = (
+                "waiting for conversation to finish"
+                if first_transcription_received.is_set()
+                else "waiting for first agent transcription"
+            )
+        _signal_test_finished()
+
     @room.on("transcription_received")
     def on_transcription(segments, participant=None, publication=None):
         nonlocal last_caller_speech_end, first_word_received, current_agent_latency
@@ -236,6 +311,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
                 agent_speech_stopped.set()
 
         if shutting_down:
+            logging.info("DEBUG: Ignoring transcription due to shutdown.")
             return
 
         for segment in segments:
@@ -246,6 +322,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             if not first_word_received:
                 latency_sec = time.time() - last_caller_speech_end
                 first_word_received = True
+                logging.info(f"[Latency]: First word received. Agent latency: {latency_sec:.2f} seconds")
                 current_agent_latency = latency_sec
 
             if not segment.final:
@@ -263,7 +340,7 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
             pending_transcription_task = asyncio.create_task(flush_pending_transcription())
 
     scenario_id = str(scenario_data.get("id", "unknown")).replace(" ", "_")
-    room_name = f"qa-test-room-{scenario_id}-{uuid.uuid4().hex[:6]}"
+    room_name = f"qa-test-room-{uuid.uuid4().hex[:6]}"
 
     logging.warning("LiveKit room name: %s", room_name)
 
@@ -285,22 +362,49 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
     try:
         await asyncio.wait_for(room.connect(livekit_url, token), timeout=CONNECT_TIMEOUT_SECONDS)
         room_connected = True
+        audio_playback = AudioPlaybackSession(room)
+        await asyncio.wait_for(audio_playback.initialize(), timeout=CONNECT_TIMEOUT_SECONDS)
         last_caller_speech_end = time.time()
-    except Exception as exc:
+    except Exception:
+        if audio_playback is not None:
+            await _bounded_cleanup(audio_playback.close(), "audio playback session close")
+        if room_connected:
+            room_connected = False
+            await _bounded_cleanup(room.disconnect(), "LiveKit room disconnect")
         await _bounded_cleanup(caller.close(), "simulated caller client close")
         raise
 
     turn_processor_task = asyncio.create_task(process_turn_queue())
 
+    wait_phase = f"waiting for first agent transcription ({WELCOME_TIMEOUT_SECONDS}s timeout)"
     try:
-        await asyncio.wait_for(
-            first_transcription_received.wait(), timeout=WELCOME_TIMEOUT_SECONDS
+        await _wait_for_event_or_finished(
+            first_transcription_received,
+            test_finished,
+            room,
+            on_disconnected,
+            WELCOME_TIMEOUT_SECONDS,
         )
-        await asyncio.wait_for(
-            test_finished.wait(), timeout=CONVERSATION_TIMEOUT_SECONDS
-        )
+        if not test_finished.is_set():
+            wait_phase = f"waiting for conversation to finish ({CONVERSATION_TIMEOUT_SECONDS}s timeout)"
+            deadline = time.monotonic() + CONVERSATION_TIMEOUT_SECONDS
+            while not test_finished.is_set():
+                if room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                    on_disconnected("CONN_DISCONNECTED (detected via state poll)")
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError
+                try:
+                    await asyncio.wait_for(
+                        test_finished.wait(), timeout=min(1.0, remaining)
+                    )
+                except asyncio.TimeoutError:
+                    continue
     except asyncio.TimeoutError as exc:
         turn_error = exc
+        turn_error_phase = wait_phase
+        logging.exception("LiveKit conversation timed out while %s", wait_phase)
     finally:
         shutting_down = True
 
@@ -310,12 +414,19 @@ async def run_livekit_test(scenario_data: dict) -> Tuple[List[Dict], SimulatedCa
         if turn_processor_task and not turn_processor_task.done():
             turn_processor_task.cancel()
 
+        if audio_playback is not None:
+            await _bounded_cleanup(audio_playback.close(), "audio playback session close")
+
         if room_connected:
             room_connected = False
             await _bounded_cleanup(room.disconnect(), "LiveKit room disconnect")
 
     if turn_error is not None:
         await _bounded_cleanup(caller.close(), "simulated caller client close")
-        raise RuntimeError(f"LiveKit conversation error: {turn_error}") from turn_error
+        phase = f" while {turn_error_phase}" if turn_error_phase else ""
+        raise RuntimeError(
+            f"LiveKit conversation error{phase}: "
+            f"{type(turn_error).__name__}: {turn_error!r}"
+        ) from turn_error
 
     return caller.conversation_history, caller

@@ -4,14 +4,30 @@ import glob
 import os
 import asyncio
 import gc
-import warnings
-import configparser
+import logging
 from pathlib import Path
-import re
 
 from src.config import get_target_environment
+from src.scenario_loader import load_scenarios
 
 target_env = get_target_environment()
+
+
+class _IgnoreUnwantedLogs(logging.Filter):
+    IGNORED_MESSAGES = {
+        "ignoring byte stream with topic 'lk.agent.session', no callback attached",
+        "ignoring text stream with topic 'lk.transcription', no callback attached",
+    }
+
+    def filter(self, record):
+        return not (
+            record.levelno == logging.INFO
+            and record.getMessage() in self.IGNORED_MESSAGES
+        )
+
+
+def pytest_configure(config):
+    logging.getLogger().addFilter(_IgnoreUnwantedLogs())
 
 
 def pytest_addoption(parser):
@@ -20,43 +36,26 @@ def pytest_addoption(parser):
         default=None,
         help="Only collect scenarios from this folder under data/testDataToRun",
     )
+    parser.addoption(
+        "--scenario-file",
+        default=None,
+        help="Run scenarios from one YAML file instead of discovering all scenario files",
+    )
 
 
 def pytest_generate_tests(metafunc):
     if "scenario" in metafunc.fixturenames:
-        scenarios = []
         scenario_root = Path(__file__).resolve().parent.parent / "data" / "testDataToRun"
         selected_group = metafunc.config.getoption("--scenario-group")
-        available_groups = set()
-
-        yaml_files = sorted(scenario_root.rglob("*.yaml"))
-
-        for file in yaml_files:
-            relative_parts = file.relative_to(scenario_root).parts
-            folder_group = relative_parts[0] if len(relative_parts) > 1 else "Ungrouped"
-            available_groups.add(folder_group)
-
-            with open(file, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-
-                items = data if isinstance(data, list) else [data]
-                for item in items:
-                    if isinstance(item, dict):
-                        # Allow YAML 'group' override, default to folder name
-                        source_group = item.get("group", folder_group)
-                        
-                        if selected_group and source_group.casefold() != selected_group.casefold():
-                            continue
-                            
-                        item["_source_file"] = str(file)
-                        item["_source_group"] = source_group
-                        scenarios.append(item)
-
-        if selected_group and not scenarios:
-            groups = ", ".join(sorted(available_groups)) or "none"
-            raise pytest.UsageError(
-                f"No scenarios found for group {selected_group!r}. Available groups: {groups}"
+        selected_file = metafunc.config.getoption("--scenario-file")
+        try:
+            scenarios, _ = load_scenarios(
+                scenario_root,
+                selected_group=selected_group,
+                scenario_file=selected_file,
             )
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            raise pytest.UsageError(str(exc)) from exc
 
         metafunc.parametrize(
             "scenario",

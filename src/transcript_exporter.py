@@ -41,7 +41,7 @@ class TranscriptExporter:
                     # LiveKit Agent is "user", Simulated Caller is "assistant"
                     elif role == "user":
                         if latency is not None:
-                            f.write(f"Agent: {content} [Latency = {latency}]\n\n")
+                            f.write(f"Agent: {content} [Agent Latency = {latency}]\n\n")
                         else:
                             f.write(f"Agent: {content}\n\n")
                     elif role == "assistant":

@@ -43,42 +43,32 @@ You must generate the CUSTOMER's replies. DO NOT act as the receptionist or agen
         self.conversation_history = [{"role": "system", "content": system_prompt}]
 
     async def generate_reply(self, agent_message: str) -> str:
-        try:
-            # Note: Azure uses 'model' kwarg mapped to your deployment_name
-            response = await self.client.chat.completions.create(
-                model=self.deployment_name,
-                messages=self.conversation_history,
-                temperature=0.7
-            )
-            
-            reply_text = response.choices[0].message.content.strip()
-            self.conversation_history.append({"role": "assistant", "content": reply_text})
-            return reply_text
-            
-        except Exception as exc:
-            logging.error(f"Azure OpenAI Error: {exc}")
-            return "I'm sorry, I didn't catch that."
+        response = await self.client.chat.completions.create(
+            model=self.deployment_name,
+            messages=self.conversation_history,
+            temperature=0.7
+        )
+
+        reply_text = response.choices[0].message.content.strip()
+        self.conversation_history.append({"role": "assistant", "content": reply_text})
+        return reply_text
 
     async def generate_initial_utterance(self) -> str:
         """Generate a short opening line from the caller to start the conversation."""
-        try:
-            prompt = self.conversation_history + [
-                {
-                    "role": "user",
-                    "content": "You are a customer on a phone call. Write a single short opening sentence to start the conversation with the agent."
-                }
-            ]
-            response = await self.client.chat.completions.create(
-                model=self.deployment_name,
-                messages=prompt,
-                temperature=0.7
-            )
-            opening_line = response.choices[0].message.content.strip()
-            self.conversation_history.append({"role": "assistant", "content": opening_line})
-            return opening_line
-        except Exception as exc:
-            logging.error(f"Azure OpenAI Error while generating initial utterance: {exc}")
-            return "Hello, I need help with a question."
+        prompt = self.conversation_history + [
+            {
+                "role": "user",
+                "content": "You are a customer on a phone call. Write a single short opening sentence to start the conversation with the agent."
+            }
+        ]
+        response = await self.client.chat.completions.create(
+            model=self.deployment_name,
+            messages=prompt,
+            temperature=0.7
+        )
+        opening_line = response.choices[0].message.content.strip()
+        self.conversation_history.append({"role": "assistant", "content": opening_line})
+        return opening_line
 
     async def close(self):
         """Properly close the AsyncAzureOpenAI client."""

@@ -9,10 +9,16 @@ from openai import AzureOpenAI
 
 DEFAULT_JUDGE_MODEL = "gpt-4o"
 DEFAULT_OPENAI_API_VERSION = "2024-02-15-preview"
+MAX_JUDGE_ATTEMPTS = 2
 
 JUDGE_SYSTEM_PROMPT = (
     "You are a conversation evaluation judge. "
     "You will review the full dialogue between a CUSTOMER and an AI AGENT and decide whether the agent satisfied the expected outcomes. "
+    "Apply these evaluation principles to every criterion and every scenario: read the transcript chronologically; track the customer's goals, constraints, clarifications, and changes of preference; and assess each agent turn in that context. "
+    "Treat semantically equivalent wording as satisfying a requirement; do not require exact phrases unless explicitly required. "
+    "Distinguish related but different facts (for example, a date being unavailable versus a time window being unavailable), and distinguish an option being offered from the customer accepting it or a task being completed. "
+    "Judge only against the stated criteria and transcript evidence: do not invent requirements, infer facts that were not stated, or claim that information was omitted when it appears anywhere in the relevant conversation. "
+    "For every failed criterion, cite or accurately paraphrase the relevant turn(s) and explain which stated requirement they violate. Consider later turns that clarify, update, or resolve the context; if the evidence does not establish a violation, do not assert one. "
     "Return only valid JSON with the keys: success (true/false), reasoning (string), and details (array of objects). "
     "Each details item must include id, passed, and rationale. "
     "Do not include any markdown, code fences, or extra text."
@@ -119,6 +125,31 @@ def _parse_judge_response(response_text: str) -> Dict[str, Any]:
     return {}
 
 
+def _is_complete_judge_response(
+    parsed: Dict[str, Any],
+    expected_outcomes: List[Dict[str, Any]],
+) -> bool:
+    if (
+        not isinstance(parsed.get("success"), bool)
+        or not isinstance(parsed.get("reasoning"), str)
+        or not parsed["reasoning"].strip()
+        or not isinstance(parsed.get("details"), list)
+    ):
+        return False
+
+    details = parsed["details"]
+    if expected_outcomes and len(details) < len(expected_outcomes):
+        return False
+
+    return all(
+        isinstance(item, dict)
+        and "id" in item
+        and isinstance(item.get("passed"), bool)
+        and isinstance(item.get("rationale"), str)
+        for item in details
+    )
+
+
 def parse_exported_transcript(file_path: Union[str, Path]) -> List[Dict[str, str]]:
     """Parse a transcript file created by TranscriptExporter into conversation history."""
     path = Path(file_path)
@@ -179,16 +210,46 @@ def judge_conversation(
         print(
             f"Sending LLM judge request: endpoint={os.environ.get('AZURE_OPENAI_ENDPOINT')} model={model} messages={len(messages)}"
         )
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            max_tokens=500,
-        )
-        raw_text = response.choices[0].message.content
-        logging.info("LLM judge response received successfully")
-        print("LLM judge response received successfully")
-        parsed = _parse_judge_response(raw_text)
+        parsed = {}
+        for attempt in range(MAX_JUDGE_ATTEMPTS):
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                max_tokens=1000,
+            )
+            choice = response.choices[0]
+            raw_text = choice.message.content or ""
+            parsed = _parse_judge_response(raw_text)
+            if _is_complete_judge_response(parsed, expected_outcomes):
+                logging.info("LLM judge response received successfully")
+                print("LLM judge response received successfully")
+                break
+
+            logging.warning(
+                "LLM judge returned an incomplete response (attempt %d/%d, finish_reason=%s)",
+                attempt + 1,
+                MAX_JUDGE_ATTEMPTS,
+                choice.finish_reason,
+            )
+            if attempt + 1 < MAX_JUDGE_ATTEMPTS:
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "Your previous response was incomplete or invalid. Return a complete "
+                        "JSON object with a boolean success, non-empty reasoning, and a details "
+                        "array containing one valid result per expected outcome."
+                    ),
+                })
+        else:
+            return {
+                "success": False,
+                "reasoning": (
+                    "LLM judge returned an incomplete response after "
+                    f"{MAX_JUDGE_ATTEMPTS} attempts."
+                ),
+                "details": [],
+            }
 
         success = bool(parsed.get("success", False))
         reasoning = str(parsed.get("reasoning", "")).strip()

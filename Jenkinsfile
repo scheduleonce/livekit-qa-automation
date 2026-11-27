@@ -8,7 +8,7 @@ pipeline {
   parameters {
     choice(
       name: 'APP_ENV',
-      choices: ['App3', 'App2', 'Orion', 'Prod'],
+      choices: ['Prod', 'App3', 'App2', 'Orion'],
       description: 'Target environment'
     )
     string(
@@ -18,7 +18,7 @@ pipeline {
     )
     string(
       name: 'SCENARIO_GROUP',
-      defaultValue: '',
+      defaultValue: 'simple-booking',
       description: 'Optional scenario folder/group under data/testDataToRun; blank runs all scenarios'
     )
   }

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Constants
 TARGET_SAMPLE_RATE = 48000
 FRAME_DURATION_MS = 20
+TRAILING_SILENCE_SECONDS = 0.4
 
 # Default Endpoint (Ensures proper https:// schema for SDK)
 AZURE_SPEECH_ENDPOINT = os.getenv(
@@ -171,7 +172,7 @@ async def generate_wav_from_text(text: str, filename: str) -> None:
     output_file = Path(filename)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    provider = os.getenv("VOICE_PROVIDER", "edge").strip().lower()
+    provider = os.getenv("VOICE_PROVIDER", "azure-speech").strip().lower()
 
     if provider == "azure-speech":
         voice = os.getenv("AZURE_SPEECH_VOICE", "en-US-AvaMultilingualNeural").strip()
@@ -222,48 +223,80 @@ def _prepare_audio_buffer(wav_filepath: str) -> Tuple[bytes, int, int]:
     return pcm_bytes, TARGET_SAMPLE_RATE, 1
 
 
-async def play_audio_to_agent(room: rtc.Room, wav_filepath: str) -> None:
-    """Stream a WAV file into LiveKit with active connection state checking."""
-    # Disconnect Guard 1: Verify room state before attempting to play
-    if room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
-        logger.warning("[Bot Mic] Room is already disconnected. Skipping audio play.")
-        return
+class AudioPlaybackSession:
+    """Publish one microphone track and reuse it for all caller replies in a room."""
 
-    logger.info(f"[Bot Mic] Starting audio stream: {wav_filepath}")
-    pcm_data, sample_rate, channels = _prepare_audio_buffer(wav_filepath)
-    bytes_per_sample = 2
+    def __init__(self, room: rtc.Room) -> None:
+        self._room = room
+        self._source = rtc.AudioSource(TARGET_SAMPLE_RATE, 1)
+        self._track = rtc.LocalAudioTrack.create_audio_track("bot_mic", self._source)
+        self._publication: rtc.LocalTrackPublication | None = None
+        self._closed = False
 
-    source = rtc.AudioSource(sample_rate, channels)
-    track = rtc.LocalAudioTrack.create_audio_track("bot_mic", source)
-    options = rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE)
+    async def initialize(self) -> None:
+        """Pre-publish the persistent 48kHz mono microphone track once per room."""
+        if self._closed:
+            raise RuntimeError("Audio playback session is closed.")
+        if self._publication is not None:
+            return
+        if self._room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+            raise ConnectionError("Cannot publish audio track to a disconnected LiveKit room.")
 
-    publication = None
-    try:
-        publication = await room.local_participant.publish_track(track, options)
-        
-        # Disconnect Guard 2: Break wait if call ended during track publish
-        for _ in range(10):
-            if room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
-                logger.warning("[Bot Mic] Call ended during UI subscription wait.")
-                return
+        options = rtc.TrackPublishOptions(
+            source=rtc.TrackSource.SOURCE_MICROPHONE,
+            dtx=False,
+        )
+        self._publication = await self._room.local_participant.publish_track(
+            self._track, options
+        )
+
+        # Allow brief initial negotiation settle before first turn audio arrives
+        for _ in range(5):
+            if self._room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                raise ConnectionError(
+                    "LiveKit room disconnected while waiting for initial audio track publish."
+                )
             await asyncio.sleep(0.1)
 
-        chunk_size = int(sample_rate * (FRAME_DURATION_MS / 1000.0)) * (channels * bytes_per_sample)
+    async def play(self, wav_filepath: str) -> None:
+        if self._closed:
+            raise RuntimeError("Audio playback session is closed.")
+        if self._room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+            raise ConnectionError("Cannot stream audio to a disconnected LiveKit room.")
+
+        if self._publication is None:
+            await self.initialize()
+
+        logger.info(f"[Bot Mic] Starting audio stream: {wav_filepath}")
+        pcm_data, sample_rate, channels = _prepare_audio_buffer(wav_filepath)
+        if sample_rate != TARGET_SAMPLE_RATE or channels != 1:
+            raise ValueError("Audio playback must be resampled to 48 kHz mono.")
+
+        bytes_per_sample = 2
+        # Append trailing silence so the remote agent's VAD detects end-of-utterance cleanly
+        trailing_silence = bytes(
+            int(sample_rate * TRAILING_SILENCE_SECONDS) * channels * bytes_per_sample
+        )
+        full_pcm = pcm_data + trailing_silence
+
+        chunk_size = int(sample_rate * (FRAME_DURATION_MS / 1000.0)) * (
+            channels * bytes_per_sample
+        )
         offset = 0
 
-        while offset < len(pcm_data):
-            # Disconnect Guard 3: Stop streaming frame-by-frame if room closes mid-speech
-            if room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
-                logger.warning("[Bot Mic] Room disconnected mid-stream. Halting audio playback.")
-                break
+        while offset < len(full_pcm):
+            if self._room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                raise ConnectionError("LiveKit room disconnected during audio playback.")
 
-            chunk_bytes = pcm_data[offset : offset + chunk_size]
+            chunk_bytes = full_pcm[offset : offset + chunk_size]
             offset += len(chunk_bytes)
-
             if not chunk_bytes:
                 break
 
             num_frames = len(chunk_bytes) // (channels * bytes_per_sample)
+            if num_frames == 0:
+                break
+
             frame = rtc.AudioFrame.create(
                 sample_rate=sample_rate,
                 num_channels=channels,
@@ -274,16 +307,25 @@ async def play_audio_to_agent(room: rtc.Room, wav_filepath: str) -> None:
             buffer_aux = np.frombuffer(chunk_bytes, dtype=np.int16)
             np.copyto(audio_data, buffer_aux)
 
-            await source.capture_frame(frame)
+            await self._source.capture_frame(frame)
             await asyncio.sleep(FRAME_DURATION_MS / 1000.0)
 
+        await self._source.wait_for_playout()
         logger.info("[Bot Mic] Finished speaking.")
 
-    except Exception as exc:
-        logger.error(f"[Bot Mic] Error streaming audio: {exc}")
-    finally:
-        if publication and room.connection_state != rtc.ConnectionState.CONN_DISCONNECTED:
-            try:
-                await room.local_participant.unpublish_track(publication.sid)
-            except Exception as unpub_err:
-                logger.warning(f"[Bot Mic] Track unpublish ignored after call end: {unpub_err}")
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+
+        try:
+            if (
+                self._publication is not None
+                and self._room.connection_state != rtc.ConnectionState.CONN_DISCONNECTED
+            ):
+                await self._source.wait_for_playout()
+                await self._room.local_participant.unpublish_track(
+                    self._publication.sid
+                )
+        finally:
+            await self._source.aclose()

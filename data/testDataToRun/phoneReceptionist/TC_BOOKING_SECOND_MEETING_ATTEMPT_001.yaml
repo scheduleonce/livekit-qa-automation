@@ -1,0 +1,71 @@
+id: TC_BOOKING_SECOND_MEETING_ATTEMPT_001
+name: Attempt to book a second meeting in the same session after initial confirmation
+type: e2e_conversation
+
+tags:
+  - booking
+  - multiIntent
+  - sessionLimits
+
+objective: >
+  You want to schedule an appointment. Provide the requested information from
+  testData one item at a time when prompted until the receptionist confirms the
+  booking is complete. After the meeting is confirmed, ask: "How can you help me?"
+  Whatever the agent replies, immediately respond with: "I want to book a meeting."
+  Observe how the agent handles the second booking request in the same session.
+
+reference_flow: >
+  Caller: I would like to schedule a meeting. ->
+  Agent: Prompts for booking details (name, email, phone, preferred time). ->
+  Caller: Provides details from testData when asked. ->
+  Agent: Confirms the meeting has been scheduled. ->
+  Caller: How can you help me? ->
+  Agent: Responds with any reply or capability overview. ->
+  Caller: I want to book a meeting. ->
+  Agent: Explains that a meeting has already been booked in this session and it
+  cannot schedule another meeting, without restarting the booking flow or
+  overwriting the first appointment.
+
+testData:
+  name: "Marcus Vance"
+  email: "marcus.vance@example.com"
+  phone: "8885551234"
+  preferred_time: "Thursday morning"
+  inquiry_question: "How can you help me?"
+  second_booking_request: "I want to book a meeting."
+
+expectedOutcomes:
+  - id: first_meeting_confirmed
+    description: >
+      The agent must collect the initial booking details accurately and provide
+      a clear confirmation that the first meeting is booked/scheduled before moving
+      on to any follow-up topics.
+    evaluator:
+      type: llm_judge
+
+  - id: inquiry_asked_and_acknowledged
+    description: >
+      After the first booking confirmation, the caller asks "How can you help me?"
+      and the agent provides a response before the caller requests another meeting.
+    evaluator:
+      type: llm_judge
+
+  - id: handle_second_meeting_request
+    description: >
+      When the caller states "I want to book a meeting" after the first meeting is
+      already confirmed, the agent must recognize that a booking was already completed
+      in this session. It must state that it cannot book another meeting (or explain
+      how to schedule another) and must NOT restart the booking flow, ask for details
+      again, or overwrite the existing confirmation.
+    evaluator:
+      type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"

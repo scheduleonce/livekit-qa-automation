@@ -1,0 +1,148 @@
+id: TC_KNOWLEDGE_QNA_BOOKING_001
+name: Financial advisor evaluates OnceHub and books a demo
+
+type: e2e_conversation
+
+objective: >
+  Verify that the phone receptionist answers five
+  product-related questions using the configured OnceHub
+  knowledge source and then helps a prospective buyer
+  schedule a product demonstration.
+
+reference_flow: >
+  Act as Alex Morgan, a financial advisor evaluating
+  OnceHub for a financial advisory practice.
+
+  Ask the following questions one at a time.
+  Wait for the receptionist's answer before asking
+  the next question.
+
+  1. "Can OnceHub let my clients book appointments
+  online without calling my office?"
+
+  2. "Can I connect my calendar so clients only see
+  appointment times when I'm available?"
+
+  3. "Can clients book appointments over the phone
+  as well as online?"
+
+  4. "Can OnceHub send appointment confirmations
+  and reminders to my clients?"
+
+  5. "Which OnceHub plan would I need for phone
+  scheduling and online booking?"
+
+  If an answer is unclear, ask for clarification
+  before moving to the next question.
+
+  After the five questions, say:
+  "I'd like to schedule a product demo to see how
+  this would work for my practice."
+
+  Request an afternoon appointment next week.
+
+  Accept a suitable time only if the receptionist
+  actually offers it.
+
+  Provide the name Alex Morgan and email
+  alex@example.com only when requested.
+
+  Do not provide a phone number. If one is required,
+  ask whether the booking can proceed without it.
+
+  Do not invent product features, plan prices,
+  appointment availability, or booking confirmations.
+
+  Keep responses conversational and concise.
+  End politely when the booking is completed or
+  no useful next step remains.
+
+testData:
+  caller:
+    name: Alex Morgan
+    email: alex@example.com
+    phone: null
+    profession: financial advisor
+
+  knowledge:
+    source: configured_knowledge_base
+    questions:
+      - "Can OnceHub let my clients book appointments online without calling my office?"
+      - "Can I connect my calendar so clients only see appointment times when I'm available?"
+      - "Can clients book appointments over the phone as well as online?"
+      - "Can OnceHub send appointment confirmations and reminders to my clients?"
+      - "Which OnceHub plan would I need for phone scheduling and online booking?"
+
+  booking:
+    meeting_type: product demonstration
+    topic: OnceHub for a financial advisory practice
+    preferred_day: next week
+    preferred_time: afternoon
+
+  actions:
+    - answer_knowledge_question
+    - book_meeting
+
+  restrictions:
+    - Answer using the configured knowledge source.
+    - Do not invent unsupported product capabilities.
+    - Do not invent pricing or plan entitlements.
+    - Do not invent a phone number.
+    - Use only availability offered by the receptionist.
+    - Do not claim a booking succeeded without confirmation.
+
+expectedOutcomes:
+  - id: EO_001
+    description: >
+      The receptionist answers the online booking
+      question using the knowledge source.
+
+  - id: EO_002
+    description: >
+      The receptionist explains supported calendar
+      connectivity and availability handling.
+
+  - id: EO_003
+    description: >
+      The receptionist answers the phone scheduling
+      question without inventing capabilities.
+
+  - id: EO_004
+    description: >
+      The receptionist explains supported confirmation
+      and reminder options.
+
+  - id: EO_005
+    description: >
+      The receptionist identifies the applicable plan
+      if supported by the knowledge source, or
+      acknowledges when the information is unavailable.
+
+  - id: EO_006
+    description: >
+      The receptionist recognizes the product demo
+      booking request and follows the scheduling process.
+
+  - id: EO_007
+    description: >
+      The receptionist offers actual available times
+      and collects required booking details.
+
+  - id: EO_008
+    description: >
+      The receptionist confirms a booking only
+      after successful scheduling, or explains
+      any limitation and offers an alternative.
+
+evaluator:
+  type: llm_judge
+
+environments:
+  App3:
+    target_bot_id: "11"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Quantum:
+    target_bot_id: "3"

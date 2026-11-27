@@ -33,7 +33,7 @@ You must generate the CUSTOMER's replies. DO NOT act as the receptionist or agen
 
         STRICT RULES:
         1. You are the customer. Never confirm the booking yourself.
-        2. Keep answers short, conversational, and human-like (1-2 sentences maximum).
+        2. Keep answers short, conversational, and human-like (try to keep it one sentence).
         3. Do NOT volunteer your personal details (email, phone, name) unless the agent explicitly asks for them.
         4. Wait for the agent to guide the conversation. Only answer the question they just asked.
         5. If the agent confirms the meeting is booked or says goodbye, include the exact tag [END_CALL] in your response.

@@ -3,6 +3,8 @@ import logging
 import uuid
 from pathlib import Path
 
+from .config import get_target_environment
+
 class TranscriptExporter:
     def __init__(self, output_dir: str = "transcripts"):
         self.output_dir = Path(output_dir)
@@ -21,7 +23,8 @@ class TranscriptExporter:
             return ""
         
         timestamp = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
-        file_path = self.output_dir / f"transcript_{test_id}_{timestamp}.txt"
+        target_env = get_target_environment()
+        file_path = self.output_dir / f"transcript_{target_env}_{test_id}_{timestamp}.txt"
         
         try:
             with open(file_path, "w", encoding="utf-8") as f:

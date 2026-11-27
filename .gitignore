@@ -70,7 +70,8 @@ replyAudioFiles/
 env.local
 
 # Local LiveKit / bot config overrides (sensitive)
-#data/livekit_bot_config.json
+data/livekit_bot_config.json
 
 # Backup files
 backup/
+notneeded/

@@ -1,9 +1,26 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
+from dotenv import load_dotenv
 import yaml
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_LOCAL_ENV = "App3"
+
+# Load local values without replacing variables injected by Jenkins or the shell.
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+
+
+def get_target_environment() -> str:
+    """Return the selected environment, preferring CI-friendly variable names."""
+    return (
+        os.getenv("APP_ENV")
+        or os.getenv("TEST_ENV")
+        or os.getenv("ENV")
+        or DEFAULT_LOCAL_ENV
+    ).strip()
 
 
 def _read_json(path: Path) -> Dict[str, Any]:
@@ -20,13 +37,15 @@ def _read_yaml(path: Path) -> Dict[str, Any]:
         return yaml.safe_load(fh) or {}
 
 
-def resolve_credentials(env: str, json_path: Path, yaml_path: Path) -> Tuple[str, str, str, str]:
+def resolve_credentials(
+    env: Optional[str],
+    json_path: Path,
+    yaml_path: Path,
+) -> Tuple[str, str, str, str]:
     """Resolve LIVEKIT credentials and bot id value for the given environment.
 
-    Logic:
-    - If `json_path` exists, use it (require `env` to be provided).
-    - Parse `yaml_path` to find `target_bot_id` for the environment.
-    - Find matching bot id entry in the JSON `BOT_ID` list and return its `value`.
+    Environment credentials take precedence over JSON. This supports Jenkins
+    credentials bindings while retaining JSON/.env fallback for local runs.
 
     Returns:
         (LIVEKIT_URL, API_KEY, API_SECRET, BOT_ID_VALUE)
@@ -34,53 +53,65 @@ def resolve_credentials(env: str, json_path: Path, yaml_path: Path) -> Tuple[str
     Raises:
         ValueError with clear message on any missing data.
     """
-    # If JSON exists, require env selection
-    if json_path.exists():
-        if not env:
-            raise ValueError("ENV environment variable is required when livekit_bot_config.json is present")
+    target_env = (env or get_target_environment()).strip()
+    config = _read_json(json_path) if json_path.exists() else {}
+    env_cfg = config.get(target_env, {})
 
-        config = _read_json(json_path)
-        if env not in config:
-            raise ValueError(f"Environment '{env}' not found in {json_path}")
+    livekit_url = os.getenv("LIVEKIT_URL") or os.getenv("QA_LIVEKIT_URL")
+    api_key = os.getenv("API_KEY") or os.getenv("QA_API_KEY")
+    api_secret = os.getenv("API_SECRET") or os.getenv("QA_API_SECRET")
+    credential_values = (livekit_url, api_key, api_secret)
 
-        env_cfg = config[env]
+    if any(credential_values):
+        missing = [
+            name for name, value in zip(
+                ("LIVEKIT_URL", "API_KEY", "API_SECRET"), credential_values
+            ) if not value
+        ]
+        if missing:
+            raise ValueError(
+                f"Incomplete environment credentials for '{target_env}'. "
+                f"Missing: {', '.join(missing)}"
+            )
+    else:
+        if not env_cfg:
+            raise ValueError(
+                f"Environment '{target_env}' not found in {json_path} and "
+                "LIVEKIT_URL/API_KEY/API_SECRET are not set"
+            )
         try:
             livekit_url = env_cfg["LIVEKIT_URL"]
             api_key = env_cfg["API_KEY"]
             api_secret = env_cfg["API_SECRET"]
-            bot_list = env_cfg.get("BOT_ID", [])
         except KeyError as exc:
-            raise ValueError(f"Missing key {exc} in {json_path} for environment {env}")
+            raise ValueError(
+                f"Missing key {exc} in {json_path} for environment {target_env}"
+            ) from exc
 
-        # Parse YAML to get target_bot_id
-        yaml_data = _read_yaml(yaml_path)
-        environments = yaml_data.get("environments") or {}
-        if env not in environments:
-            raise ValueError(f"Environment '{env}' not defined in {yaml_path}")
-        target_bot_id = str(environments[env].get("target_bot_id"))
-        if not target_bot_id:
-            raise ValueError(f"No target_bot_id configured for environment '{env}' in {yaml_path}")
+    bot_id = os.getenv("BOT_ID") or os.getenv("QA_BOTID")
+    if bot_id:
+        return livekit_url, api_key, api_secret, bot_id
 
-        # Find matching bot entry
-        for entry in bot_list:
-            if str(entry.get("id")) == target_bot_id:
-                bot_value = entry.get("value")
-                if not bot_value:
-                    raise ValueError(f"BOT_ID entry with id={target_bot_id} has no 'value' in {json_path}")
-                return livekit_url, api_key, api_secret, bot_value
+    bot_list = env_cfg.get("BOT_ID", [])
+    yaml_data = _read_yaml(yaml_path)
+    environments = yaml_data.get("environments") or {}
+    if target_env not in environments:
+        raise ValueError(f"Environment '{target_env}' not defined in {yaml_path}")
+    target_bot_id = str(environments[target_env].get("target_bot_id", ""))
+    if not target_bot_id:
+        raise ValueError(
+            f"No target_bot_id configured for environment '{target_env}' in {yaml_path}"
+        )
 
-        raise ValueError(f"No BOT_ID entry with id={target_bot_id} found in {json_path} for environment {env}")
+    for entry in bot_list:
+        if str(entry.get("id")) == target_bot_id:
+            bot_value = entry.get("value")
+            if not bot_value:
+                raise ValueError(
+                    f"BOT_ID entry with id={target_bot_id} has no 'value' in {json_path}"
+                )
+            return livekit_url, api_key, api_secret, bot_value
 
-    # Fallback: use environment variables if JSON not present
-    livekit_url = os.getenv("QA_LIVEKIT_URL") or os.getenv("LIVEKIT_URL")
-    api_key = os.getenv("QA_API_KEY") or os.getenv("API_KEY")
-    api_secret = os.getenv("QA_API_SECRET") or os.getenv("API_SECRET")
-    bot_id = os.getenv("QA_BOTID") or os.getenv("BOT_ID")
-
-    if not (livekit_url and api_key and api_secret and bot_id):
-        missing = [k for k, v in (
-            ("LIVEKIT_URL", livekit_url), ("API_KEY", api_key), ("API_SECRET", api_secret), ("BOT_ID", bot_id)
-        ) if not v]
-        raise ValueError(f"Missing configuration and no livekit_bot_config.json present. Missing: {', '.join(missing)}")
-
-    return livekit_url, api_key, api_secret, bot_id
+    raise ValueError(
+        f"No BOT_ID entry with id={target_bot_id} found in {json_path} for environment {target_env}"
+    )

@@ -1,0 +1,72 @@
+# TC-004: Timezone Correction During Booking
+- id: TC_SCHED_TIMEZONE_004
+  name: "Timezone rejection and correction during booking"
+  type: "e2e_conversation"
+
+  objective: >
+    You want to book an online meeting.
+    When the agent detects your timezone as India Time, say No and tell the
+    agent you are calling from South Africa.
+    Confirm when the agent updates to South Africa Time.
+    Provide all other details exactly as written in testData when asked.
+
+  reference_flow: >
+    Agent: How can I help? ->
+    Caller: I want to book a meeting for a bike loan. ->
+    Agent: When would you like to meet? ->
+    Caller: Next Monday. ->
+    Agent: I have identified your timezone as India Time. Shall I use this? ->
+    Caller: No, I am calling from South Africa. ->
+    Agent: I have updated your timezone to South Africa Time. Shall I proceed? ->
+    Caller: Yes please. ->
+    Agent: Your meeting is confirmed.
+
+  testData:
+    name: "Robert Fernandez"
+    email: "robert.f@outlook.com"
+    phone_number: "9912345678"
+    preferred_date: "Next Monday"
+    preferred_meeting_option: "online"
+    calendar_intent: "bike loan"
+    detected_timezone: "India Time"
+    corrected_timezone: "South Africa Time"
+
+  expectedOutcomes:
+    - id: timezone_detected
+      description: "Agent auto-detects timezone and asks for confirmation."
+      evaluator:
+        type: regex
+        pattern: "timezone|india time|identified.*timezone|use this timezone"
+
+    - id: timezone_updated
+      description: "Agent acknowledges and updates timezone to South Africa Time."
+      evaluator:
+        type: regex
+        pattern: "south africa|updated.*timezone|south africa time|changed.*timezone"
+
+    - id: timezone_not_reverted
+      description: "Agent does not revert to India Time after correction."
+      evaluator:
+        type: llm
+        prompt: >
+          Review the conversation. After the caller corrected the timezone to
+          South Africa Time, did the agent revert back to India Time at any
+          point? Answer YES if it reverted, NO if it stayed as South Africa Time.
+        expected: "NO"
+
+    - id: meeting_confirmed
+      description: "Agent confirms meeting with correct South Africa timezone."
+      evaluator:
+        type: regex
+        pattern: "confirmed|scheduled|booked|south africa"
+
+  environments:
+    App3:
+      target_bot_id: "2"
+    App2:
+      target_bot_id: "1"
+    Orion:
+      target_bot_id: "2"
+  
+  tags:
+    - receptionistTest

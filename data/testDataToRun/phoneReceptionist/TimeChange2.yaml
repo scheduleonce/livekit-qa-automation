@@ -1,0 +1,161 @@
+
+id: TC_BOOKING_DATE_CHANGE_002
+name: Update appointment date from tomorrow to next week
+type: e2e_conversation
+
+objective: >
+  You want to schedule an appointment through the booking hub.
+
+  Follow this sequence:
+  1. Start by saying: "I need an appointment for tomorrow."
+  2. After the receptionist acknowledges or processes that date, change your
+     preference to next week. Say: "Actually, next week would work better."
+  3. If the receptionist offers a date for tomorrow or asks whether tomorrow
+     works, do not accept or confirm it. Remind the receptionist that you prefer
+     next week.
+  4. If asked to choose from suggested dates, select one exact date the
+     receptionist offers for next week. Do not invent a date or time.
+  5. Provide any other booking details only when requested, using testData.
+  6. Wait for the receptionist to complete the booking and confirm the result.
+
+  Keep replies short and conversational. Do not claim that the appointment is
+  booked yourself.
+
+reference_flow: >
+  Caller: I need an appointment for tomorrow. -> Agent: Acknowledges or
+  processes the requested date. -> Caller: Actually, next week would work
+  better. -> Agent: Offers an available date next week. -> Caller: Selects
+  one exact offered date. -> Agent: Requests any remaining required booking
+  details. -> Caller: Provides them when asked. -> Agent: Confirms only after
+  successful booking.
+
+testData:
+  name: Alex Morgan
+  email: alex.morgan@example.com
+
+expectedOutcomes:
+  - id: appointment_date_updated_to_next_week
+    description: >
+      The caller initially requests an appointment for tomorrow and then
+      changes the preference to next week before confirming a date. The
+      receptionist must use the updated next-week preference and must not
+      proceed with the outdated tomorrow preference. The caller must select
+      only a date explicitly offered by the receptionist. The receptionist
+      must not claim the appointment is booked unless booking succeeds.
+
+    evaluator:
+      type: llm_judge
+
+    output_schema:
+      type: object
+      properties:
+        pass:
+          type: boolean
+          description: "True only if all mandatory date-change and booking requirements pass."
+
+        overall_conversation_score:
+          type: number
+          description: "Score from 0.0 to 1.0."
+
+        functional_checklist:
+          type: object
+          properties:
+            initial_date_request_captured:
+              type: boolean
+            updated_date_preference_captured:
+              type: boolean
+            outdated_date_not_used:
+              type: boolean
+            next_week_dates_offered:
+              type: boolean
+            caller_selected_offered_date:
+              type: boolean
+            booking_details_captured_correctly:
+              type: boolean
+            booking_confirmed:
+              type: boolean
+            confirmed_date_matches_selected_date:
+              type: boolean
+          required:
+            - initial_date_request_captured
+            - updated_date_preference_captured
+            - outdated_date_not_used
+            - next_week_dates_offered
+            - caller_selected_offered_date
+            - booking_details_captured_correctly
+            - booking_confirmed
+            - confirmed_date_matches_selected_date
+
+        issues_detected:
+          type: array
+          items:
+            type: object
+            properties:
+              defect_type:
+                type: string
+                enum:
+                  - CONSTRAINT_IGNORED
+                  - OUTDATED_DATE_USED
+                  - INVALID_DATE_OFFERED
+                  - UNAUTHORIZED_DATE_SELECTION
+                  - CONTEXT_LOSS
+                  - INCORRECT_BOOKING_CONFIRMATION
+                  - HALLUCINATION
+                  - CHECKLIST_FAILURE
+              severity:
+                type: string
+                enum:
+                  - CRITICAL
+                  - HIGH
+                  - MEDIUM
+                  - LOW
+              turn_number_or_quote:
+                type: string
+              explanation:
+                type: string
+            required:
+              - defect_type
+              - severity
+              - explanation
+
+        extracted_entities:
+          type: object
+          properties:
+            initial_requested_date:
+              type: string
+            updated_date_preference:
+              type: string
+            offered_dates:
+              type: array
+              items:
+                type: string
+            caller_selected_date:
+              type: string
+            confirmed_date_time:
+              type: string
+            captured_name:
+              type: string
+            captured_email:
+              type: string
+
+        summary_of_findings:
+          type: string
+          description: "Summary of date-change handling, booking outcome and detected defects."
+
+      required:
+        - pass
+        - overall_conversation_score
+        - functional_checklist
+        - issues_detected
+        - extracted_entities
+        - summary_of_findings
+
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "6"
+  Orion:
+    target_bot_id: "4"
+  Quantum:
+    target_bot_id: "3"

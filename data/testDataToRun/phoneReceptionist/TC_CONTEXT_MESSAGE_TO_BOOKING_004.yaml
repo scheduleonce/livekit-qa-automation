@@ -1,0 +1,53 @@
+id: TC_CONTEXT_MESSAGE_TO_BOOKING_004
+name: Reuse message caller details when starting a booking
+type: e2e_conversation
+objective: >
+  You call to leave a message. Provide your name and email from testData only
+  when the receptionist asks, then provide the message content when asked.
+  After the receptionist acknowledges the message, say you also need to
+  schedule a meeting. Provide your preferred time only when the receptionist
+  asks. If asked again for your name or email during booking, politely remind
+  the receptionist that you already gave those details and ask them to reuse
+  them. Do not claim the meeting is booked yourself.
+reference_flow: >
+  Caller: I need to leave a message. -> Agent: Collects name, email, and
+  message content. -> Caller: Provides each when asked. -> Agent: Acknowledges
+  the message. -> Caller: Also asks to schedule a meeting. -> Agent: Continues
+  with the existing name and email, asks for the still-missing preferred
+  time, and proceeds with booking.
+testData:
+  name: Taylor Reed
+  email: taylor.reed@example.com
+  message_content: I will be ten minutes late to my consultation.
+  preferred_time: Friday after 2 PM
+expectedOutcomes:
+  - id: message_details_retained_for_booking
+    description: >
+      The caller provides Taylor Reed, taylor.reed@example.com, and the
+      message content when asked, then requests a meeting. Pass only if the
+      receptionist carries the caller's name and email into booking and does
+      not ask them to provide or repeat either value again. A read-back for
+      confirmation is allowed, but a request to restate is not.
+    evaluator:
+      type: llm_judge
+  - id: booking_asks_for_missing_time
+    description: >
+      The caller has not provided a preferred meeting time during the
+      message-taking flow. The receptionist must not infer a time from the
+      message content; it should request the preferred booking time if
+      required. The caller supplies Friday after 2 PM when asked, and the
+      receptionist should use it and accurately describe the booking status.
+    evaluator:
+      type: llm_judge
+environments:
+  App3:
+    target_bot_id: "2"
+  App2:
+    target_bot_id: "1"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"
+
+tags:
+  - extraction123

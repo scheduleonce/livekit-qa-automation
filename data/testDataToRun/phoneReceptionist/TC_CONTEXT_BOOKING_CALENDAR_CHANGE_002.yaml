@@ -1,0 +1,55 @@
+id: TC_CONTEXT_BOOKING_CALENDAR_CHANGE_002
+name: Keep caller details when changing the booking calendar
+type: e2e_conversation
+objective: >
+  You want to schedule a meeting through the booking hub. Select the first
+  calendar or meeting type the receptionist offers. Provide your name and
+  email from testData only when asked. After you have provided both, say you
+  changed your mind and want to use a different calendar or meeting type.
+  Select a different option from those the receptionist offers, without
+  inventing a calendar name. If asked again for your name or email, politely
+  remind the receptionist that you already provided it. Provide your
+  preferred time only when asked. Keep replies short and do not claim the
+  meeting is booked yourself.
+reference_flow: >
+  Caller: I would like to schedule a meeting. -> Agent: Presents booking
+  options. -> Caller: Selects the first offered option. -> Agent: Collects
+  the caller's name and email. -> Caller: Provides each when asked. -> Caller:
+  Changes their mind and requests a different option. -> Agent: Presents
+  another option. -> Caller: Selects the different option. -> Agent: Continues
+  using the existing name and email, asking only for the still-missing time
+  and other required details.
+testData:
+  name: Donna Jackson
+  email: donna.jackson@example.com
+  preferred_time: next Thursday morning
+expectedOutcomes:
+  - id: booking_option_changes_without_losing_identity
+    description: >
+      The caller selects one offered booking option, provides Donna Jackson
+      and donna.jackson@example.com when asked, then changes to a different
+      option offered by the receptionist. Pass only if the receptionist
+      applies the new selection and retains both previously collected
+      identity values without asking the caller to provide or repeat them.
+      A concise confirmation read-back is allowed. The caller must not have
+      to name or invent a calendar option.
+    evaluator:
+      type: llm_judge
+  - id: only_missing_booking_information_requested
+    description: >
+      The caller has not yet provided a preferred time, so asking for it is
+      appropriate. The caller supplies next Thursday morning when asked.
+      Pass if the receptionist continues with the changed calendar using the
+      supplied time and requests only other information that is genuinely
+      still required.
+    evaluator:
+      type: llm_judge
+environments:
+  App3:
+    target_bot_id: "10"
+  App2:
+    target_bot_id: "4"
+  Orion:
+    target_bot_id: "2"
+  Quantum:
+    target_bot_id: "1"
